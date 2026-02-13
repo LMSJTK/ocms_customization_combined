@@ -381,10 +381,318 @@ Build out the customization portal allowing companies to manage brand kits (logo
 
 ---
 
+## Epic 6: Content Translation (Claude-Powered)
+
+### Story 6.1: Translation API Endpoint
+
+**As** an API consumer, **I want** to translate content HTML into another language using Claude **so that** companies can deliver training in their employees' native languages.
+
+**File to create**: `public/api/translate-content.php`
+**File to modify**: `lib/ClaudeAPI.php` (add `translateContent()` method)
+
+**Acceptance Criteria:**
+- `POST /api/translate-content.php` — JSON body: `content_id`, `target_language` (ISO 639-1 code, e.g. `es`, `fr`, `de`, `pt-br`, `ar`), `source_language` (optional, defaults to `en`)
+- Fetches content HTML (`entry_body_html` for training/education, `email_body_html` for email)
+- Calls new `ClaudeAPI::translateContent($html, $targetLang, $sourceLang)` method
+- Claude translates **only visible text content** — preserves all HTML structure, attributes, `data-cue`/`data-tag` attributes, inline styles, `src`/`href` URLs, scripts, and placeholders (e.g. `RECIPIENT_EMAIL_ADDRESS`)
+- Uses the same file-reference tokenization pattern from `tagHTMLContent()` (lines 455-490) to protect URLs/paths from AI corruption
+- Returns `{"success": true, "html": "<translated html>", "source_language": "en", "target_language": "es", "content_id": "..."}`
+- Does NOT save — this is a preview/transform endpoint (saving is done via Story 6.2 or Story 2.2)
+- Auth: `validateBearerToken()` + `validateVpnAccess()`
+
+**Technical Notes:**
+- `ClaudeAPI::translateContent()` system prompt should emphasize:
+  - Preserve ALL HTML tags, attributes, structure
+  - Preserve ALL placeholder tokens (`__ASSET_REF_XXXX__`)
+  - Translate only human-readable text nodes and `alt` attributes
+  - Maintain the tone and formality level (phishing emails should still read like phishing emails)
+  - For RTL languages (Arabic, Hebrew): add `dir="rtl"` to root element
+- The existing `$this->protectFileReferences()` / `$this->restoreFileReferences()` pattern in `tagHTMLContent()` is directly reusable
+- Max content size check: same 50KB limit used by other Claude methods
+- Language code validation against a known set (the `languages` column already uses these codes)
+
+---
+
+### Story 6.2: Save Translated Content as New Content Record
+
+**As** an API consumer, **I want** to save a translation as a new content record linked to the original **so that** translated versions appear in the content library and can be assigned independently.
+
+**Acceptance Criteria:**
+- `POST /api/translate-content.php?action=save` — JSON body: `content_id` (source), `target_language`, `translated_html` (from Story 6.1 preview), `title` (optional, defaults to `"{original_title} ({language})"`)
+- Creates a **new** record in the `content` table with:
+  - Same `content_type`, `company_id`, `tags`, `difficulty` as the source
+  - `languages` set to `target_language`
+  - `entry_body_html` / `email_body_html` set to the translated HTML
+  - `title` appended with language name (e.g. "Invoice Scam (Spanish)")
+  - New UUID, new `created_at`
+- Stores the parent-child relationship: add `source_content_id` column to `content` table, or use a `content_translations` join table (see Technical Notes)
+- Returns `{"success": true, "content_id": "new-uuid", "title": "...", "language": "es"}`
+- Auth: `validateBearerToken()` + `validateVpnAccess()`
+
+**Technical Notes:**
+- Recommend a lightweight `content_translations` table:
+  ```sql
+  CREATE TABLE content_translations (
+      id SERIAL PRIMARY KEY,
+      source_content_id TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+      translated_content_id TEXT NOT NULL REFERENCES content(id) ON DELETE CASCADE,
+      source_language VARCHAR(10) NOT NULL DEFAULT 'en',
+      target_language VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP DEFAULT now(),
+      UNIQUE(source_content_id, target_language)
+  );
+  ```
+- The UNIQUE constraint prevents duplicate translations of the same content into the same language
+- This approach keeps translations as first-class content records (they can have their own quizzes, customizations, tracking, etc.)
+- Schema addition goes into the migration script (Story 5.2)
+
+---
+
+### Story 6.3: Translation UI in Customization Portal
+
+**As** a portal user, **I want** to translate a selected template into another language from the editor **so that** I can produce localized content without leaving the portal.
+
+**Integrated into**: `public/customization-portal.php` (Editor view, new sidebar section)
+
+**Acceptance Criteria:**
+- New "Translate" section in the editor sidebar (below Brand Kit, above Advanced HTML Editor)
+- Language dropdown populated with supported languages: English, Spanish, French, German, Portuguese (Brazil), Arabic, Japanese, Korean, Italian, Dutch, Chinese (Simplified), Chinese (Traditional) — extensible
+- "Translate" button calls `POST /api/translate-content.php` with current content HTML + selected language
+- Shows loading spinner during Claude API call (may take 5-15 seconds for large content)
+- Preview pane updates with translated HTML
+- "Save as New Template" button calls Story 6.2's save endpoint
+- "Apply to Current" replaces the current customization HTML with the translated version (for saving as a customization, not a new content record)
+- Existing translations shown as chips/badges below the dropdown (fetched from `content_translations` table)
+- For RTL languages, preview pane should respect `dir="rtl"` on the rendered content
+
+**Technical Notes:**
+- Translation + brand kit can be combined: translate first, then apply brand kit (or vice versa)
+- Consider caching the last translation in browser `sessionStorage` to avoid re-calling Claude if user toggles between views
+- The language dropdown values match the ISO codes used in `content.languages`
+
+---
+
+## Epic 7: Quiz Generation Portal Exposure
+
+### Story 7.1: Quiz Generation UI in Editor
+
+**As** a portal user, **I want** to generate and preview quiz questions for a content template from the editor **so that** I can add assessments without using the raw API.
+
+**Integrated into**: `public/customization-portal.php` (Editor view, new sidebar section or modal)
+
+**Acceptance Criteria:**
+- New "Quiz" section in the editor sidebar or a "Generate Quiz" button in the toolbar
+- Controls:
+  - Number of questions slider/dropdown (2-5, default 3)
+  - "Generate Quiz" button
+- Calls existing `POST /api/generate-questions.php` with `content_id` and `num_questions`
+- Shows loading state during Claude API call
+- **Quiz Preview Panel** (modal or inline below preview pane):
+  - Renders each generated question with its options, correct answer highlighted in green, and explanation
+  - Questions shown in a read-friendly format (not the raw JSON)
+  - "Regenerate" button to re-call the API for new questions
+  - "Regenerate Question" button per-question to replace just one question (calls API with `num_questions=1` and splices into the array)
+- **Inject Quiz** button: calls `POST /api/generate-questions.php` with `inject: true`, updates preview pane with the quiz appended to content
+- **Remove Quiz** button (if quiz already injected): strips the `#ocms-quiz-section` div and the quiz script tag from the HTML, updates `scorable` to false
+- After injection, the preview pane shows the full content with the quiz section visible at the bottom
+- Auth inherited from portal session
+
+**Technical Notes:**
+- The existing `generate-questions.php` endpoint is already fully functional — this story is purely UI
+- Quiz HTML from the API response (`quiz_html` field) can be rendered directly in the preview
+- For the "Remove Quiz" feature: simple DOM operation — remove `#ocms-quiz-section` and the `ocms-quiz.js` script tag
+- If working with a customization (not the base content), inject into `customized_html` rather than the base content. This means the inject flow should go through the customization CRUD (PUT to `customizations.php`) rather than directly modifying the base content
+- Question preview should parse the `questions` JSON array, not render the `quiz_html` (which is for end users)
+
+---
+
+### Story 7.2: Quiz Management for Customizations
+
+**As** a portal user, **I want** quizzes generated for customizations to be stored with the customization **so that** each company's branded version can have its own quiz.
+
+**Acceptance Criteria:**
+- When "Inject Quiz" is clicked on a customization (not a base template), the quiz HTML is appended to `customized_html` in the `content_customizations` record — NOT the base content
+- `customization_data` JSONB is updated with a `quiz` key:
+  ```json
+  {
+    "quiz": {
+      "injected": true,
+      "num_questions": 3,
+      "questions": [...],
+      "generated_at": "2026-02-13T..."
+    }
+  }
+  ```
+- "Remove Quiz" on a customization removes it from `customized_html` and sets `quiz.injected: false` in `customization_data`
+- Base content `scorable` flag is NOT modified when working on customizations
+- For base templates (no customization context), the existing `generate-questions.php` inject behavior is used as-is
+
+**Technical Notes:**
+- This requires the editor to know whether it's editing a base template or a customization, and route the inject call accordingly
+- Depends on Story 2.2 (customization CRUD) being complete
+
+---
+
+## Epic 8: Threat Indicator Viewer & Editor
+
+### Story 8.1: Data-Cue Visualization in Email Preview
+
+**As** a portal user, **I want** to see all phishing indicators (data-cues) highlighted and explained in the email preview **so that** I can understand what threats are present and how they're classified.
+
+**Integrated into**: `public/customization-portal.php` (Editor view, new mode)
+
+**Acceptance Criteria:**
+- New "Threat View" toggle button in the editor toolbar (alongside Edit/Preview)
+- When active, the preview renders the email with all `data-cue` elements visually highlighted:
+  - Each `data-cue` element gets a colored border/background based on cue category:
+    - Error: red (#EF4444)
+    - Technical indicator: orange (#F59E0B)
+    - Visual presentation: purple (#8B5CF6)
+    - Language and content: blue (#3B82F6)
+    - Common tactic: green (#10B981)
+  - Hovering over a highlighted element shows a tooltip with:
+    - Cue name (human-readable, e.g. "Sense of Urgency" from `sense-of-urgency`)
+    - Category (e.g. "Language and content")
+    - Criteria description (from the NIST taxonomy: "Does the message contain time pressure...")
+- **Threat Summary Panel** in the sidebar:
+  - Lists all detected cues grouped by category
+  - Count per category
+  - NIST difficulty rating badge (from `content.difficulty`: "Least", "Moderately", "Very" difficult)
+  - Each cue is clickable — scrolls to and highlights the corresponding element in the preview
+- Works for email content only (data-cues are email-specific). For non-email content, the Threat View button is hidden/disabled
+
+**Technical Notes:**
+- The cue taxonomy is defined in `ClaudeAPI::tagPhishingEmail()` (lines 539-590) — the 5 categories and 23 cues with their criteria. This data needs to be available client-side as a JS object
+- Extract the cue taxonomy into a shared location (e.g. a static JSON file or a dedicated API endpoint) so both the PHP backend and JS frontend reference the same source of truth
+- Client-side implementation: parse `data-cue` attributes from the preview HTML using `querySelectorAll('[data-cue]')`, then overlay highlight styles and build the summary panel
+- The highlight overlay should be CSS-only (add classes, not modify the content HTML) so it can be toggled on/off cleanly
+- Content's `difficulty` value comes from the content record (already fetched for the editor)
+
+---
+
+### Story 8.2: Threat Editor — Add/Remove/Modify Cues
+
+**As** a portal user, **I want** to manually add, remove, or modify phishing indicators on email elements **so that** I can fine-tune the threat profile of a phishing template.
+
+**Integrated into**: `public/customization-portal.php` (Editor view, within Threat View mode)
+
+**Acceptance Criteria:**
+- In Threat View mode, clicking an element opens a **Threat Edit Panel** in the sidebar:
+  - If element already has a `data-cue`: shows current cue with option to change or remove
+  - If element has no `data-cue`: shows "Add Threat Indicator" with a dropdown of all 23 cues grouped by category
+- **Add Cue**: Select cue from categorized dropdown → `data-cue` attribute added to element in preview HTML → highlight appears
+- **Remove Cue**: Click "Remove" on a cue → `data-cue` attribute removed from element → highlight removed
+- **Change Cue**: Dropdown changes the `data-cue` value on the element
+- All edits are tracked in `customization_data` JSONB under a `cue_edits` key:
+  ```json
+  {
+    "cue_edits": [
+      {"action": "add", "element_selector": "a[href*='verify']", "cue": "domain-spoofing"},
+      {"action": "remove", "element_selector": "span.urgency", "cue": "sense-of-urgency"},
+      {"action": "change", "element_selector": "img.logo", "old_cue": "no-minimal-branding", "new_cue": "logo-imitation-outdated"}
+    ]
+  }
+  ```
+- **Recalculate Difficulty** button: sends the current HTML (with cue edits applied) to a new API endpoint that re-evaluates difficulty based on the cue count and types, without re-running the full Claude tagging
+- Changes are saved via the customization CRUD (PUT to `customizations.php`), so cue edits persist as part of the customization
+
+**Technical Notes:**
+- This is manual editing — no Claude call needed for add/remove/change operations
+- The difficulty recalculation can be a simple heuristic based on NIST guidelines:
+  - 0-2 cues → "least" difficult (easy to spot as phishing)
+  - 3-5 cues → "moderately" difficult
+  - 6+ cues → "very" difficult (hard to spot — many realistic elements)
+  - Weight by category: Technical indicators and Common tactics make detection harder
+- Alternatively, the "Recalculate Difficulty" can call Claude for a more nuanced assessment (using the HTML + current cue list)
+- Element selectors for the edit log should use a stable identifier (element index, id, or XPath) since CSS selectors may not be unique
+
+---
+
+### Story 8.3: AI-Assisted Threat Injection
+
+**As** a portal user, **I want** to ask Claude to add specific types of threats to an email **so that** I can increase the difficulty or add training scenarios for specific attack techniques.
+
+**File to modify**: `lib/ClaudeAPI.php` (add `injectThreats()` method)
+**File to create**: `public/api/inject-threats.php`
+
+**Acceptance Criteria:**
+- `POST /api/inject-threats.php` — JSON body:
+  - `content_id` or `html` (the email HTML to modify)
+  - `threat_types` — array of cue names to inject (e.g. `["sense-of-urgency", "domain-spoofing", "mimics-business-process"]`)
+  - `intensity` — optional: `subtle` (hard to detect) or `obvious` (easy to detect), defaults to `subtle`
+- New `ClaudeAPI::injectThreats($html, $threatTypes, $intensity)` method:
+  - System prompt instructs Claude to modify the email to introduce the requested threat indicators
+  - Claude rewrites/adds text or modifies elements to create the threat, then wraps them in `data-cue` attributes
+  - For `subtle` intensity: threats should be well-disguised (e.g. a typo in a domain, slightly urgent but professional tone)
+  - For `obvious` intensity: threats should be more apparent (e.g. blatant urgency, clearly fake domain)
+  - Uses file-reference tokenization to protect existing URLs/paths
+- Returns `{"success": true, "html": "<modified html>", "injected_cues": ["sense-of-urgency", ...], "difficulty": "moderately"}`
+- The response also includes the new difficulty rating
+- Auth: `validateBearerToken()` + `validateVpnAccess()`
+
+**UI Integration** (in the Threat View mode):
+- "Add Threats with AI" button opens a modal:
+  - Checkboxes for each cue category with individual cues underneath
+  - Intensity toggle: Subtle / Obvious
+  - "Generate" button calls the API
+  - Preview of changes before accepting
+  - "Accept" applies changes to preview, "Cancel" discards
+- After accepting, changes are reflected in the preview HTML and the Threat Summary Panel updates
+
+**Technical Notes:**
+- The `injectThreats()` prompt should include the full cue taxonomy (same as `tagPhishingEmail()`)
+- Key difference from `tagPhishingEmail()`: that method _finds_ existing indicators; this method _creates_ new ones
+- The system prompt should emphasize: modify text content only where needed, preserve HTML structure, keep changes realistic and contextually appropriate
+- Consider sending back a diff or changelog so the UI can highlight what changed
+- This is the most "creative" Claude usage — set temperature higher if supported (currently not in the API wrapper, but can be added)
+
+---
+
+### Story 8.4: Threat Taxonomy API
+
+**As** a frontend consumer, **I want** to fetch the full NIST Phish Scale cue taxonomy from an API **so that** the threat viewer and editor can render categories and descriptions without hardcoding them.
+
+**File to create**: `public/api/threat-taxonomy.php`
+
+**Acceptance Criteria:**
+- `GET /api/threat-taxonomy.php` — returns the full taxonomy as JSON:
+  ```json
+  {
+    "success": true,
+    "taxonomy": [
+      {
+        "type": "Error",
+        "color": "#EF4444",
+        "cues": [
+          {"name": "spelling-grammar", "label": "Spelling & Grammar", "criteria": "Does the message contain inaccurate spelling..."},
+          {"name": "inconsistency", "label": "Inconsistency", "criteria": "Are there inconsistencies..."}
+        ]
+      },
+      ...
+    ],
+    "difficulty_levels": [
+      {"value": "least", "label": "Least Difficult", "description": "Multiple obvious red flags..."},
+      {"value": "moderately", "label": "Moderately Difficult", "description": "Some red flags but requires closer inspection..."},
+      {"value": "very", "label": "Very Difficult", "description": "Sophisticated, few obvious indicators..."}
+    ]
+  }
+  ```
+- No auth required (this is reference data, not sensitive)
+- The JSON is the single source of truth — `ClaudeAPI::tagPhishingEmail()` should also read from this (or both read from a shared PHP constant/file)
+
+**Technical Notes:**
+- Extract the cue taxonomy from the hardcoded JSON in `ClaudeAPI::tagPhishingEmail()` (lines 539-590) into a shared location:
+  - Option A: A PHP constant file `lib/ThreatTaxonomy.php` that both the API endpoint and `ClaudeAPI` import
+  - Option B: A static JSON file `config/threat-taxonomy.json` loaded by both
+- The `label` field is a human-readable version of the `name` (e.g. `sense-of-urgency` → `Sense of Urgency`)
+- The `color` field per category enables consistent UI highlighting
+
+---
+
 ## Dependency Graph
 
 ```
-Story 5.2 (migration script)
+Story 5.2 (migration script + new tables)
   └─→ Story 1.1 (brand kit CRUD)
        ├─→ Story 1.2 (brand kit asset upload)  ←── Story 5.1 (S3 paths)
        ├─→ Story 1.3 (brand kit defaults)
@@ -392,35 +700,62 @@ Story 5.2 (migration script)
             └─→ Story 2.2 (customization CRUD)
                  ├─→ Story 2.3 (customization preview)
                  ├─→ Story 3.1 (launch integration)  ←── Story 3.2 (logo replacement)
-                 └─→ Story 4.3 (editor frontend)
-  Story 4.1 (portal gallery) ── can start in parallel, uses existing list-content API
+                 ├─→ Story 4.3 (editor frontend)
+                 ├─→ Story 7.2 (quiz for customizations)
+                 └─→ Story 8.2 (threat editor saves to customization)
+
+  Story 4.1 (portal gallery) ── parallel, uses existing list-content API
   Story 4.2 (brand kit manager) ── depends on Story 1.1 + 1.2
   Story 4.4 (status/publishing) ── depends on Story 2.2 + 3.1
+
+  Story 6.1 (translation API) ── standalone, only needs ClaudeAPI
+  Story 6.2 (save translations) ── depends on Story 6.1
+  Story 6.3 (translation UI) ── depends on Story 6.1 + 6.2 + Story 4.3 (editor)
+
+  Story 7.1 (quiz UI in editor) ── depends on existing generate-questions.php + Story 4.3 (editor)
+  Story 7.2 (quiz for customizations) ── depends on Story 7.1 + Story 2.2
+
+  Story 8.4 (threat taxonomy API) ── standalone, no dependencies
+  Story 8.1 (threat viewer) ── depends on Story 8.4 + Story 4.3 (editor)
+  Story 8.2 (threat editor) ── depends on Story 8.1 + Story 2.2
+  Story 8.3 (AI threat injection) ── depends on Story 8.1 + ClaudeAPI
+
   Story 5.3 (docs) ── after all API stories complete
 ```
 
 ## Suggested Sprint Plan
 
 **Sprint 1 — Foundation:**
-- Story 5.2 (migration script)
+- Story 5.2 (migration script — include `content_translations` table)
 - Story 1.1 (brand kit CRUD API)
 - Story 5.1 (S3 path extension)
 - Story 1.2 (brand kit asset upload)
 - Story 1.3 (brand kit defaults)
+- Story 8.4 (threat taxonomy API — standalone, quick win)
 
-**Sprint 2 — Customization Engine:**
+**Sprint 2 — Customization & Translation Engine:**
 - Story 2.1 (apply brand kit transform)
 - Story 2.2 (customization CRUD API)
 - Story 3.1 (launch integration)
 - Story 3.2 (brand kit logo replacement)
+- Story 6.1 (translation API)
+- Story 6.2 (save translated content)
 
-**Sprint 3 — Frontend:**
+**Sprint 3 — Frontend Core:**
 - Story 4.1 (portal gallery)
 - Story 4.2 (brand kit manager page)
 - Story 4.3 (content editor)
 - Story 4.4 (status & publishing)
 
-**Sprint 4 — Polish:**
+**Sprint 4 — AI Features Frontend:**
+- Story 6.3 (translation UI in editor)
+- Story 7.1 (quiz generation UI)
+- Story 7.2 (quiz for customizations)
+- Story 8.1 (threat indicator viewer)
+
+**Sprint 5 — Threat Editor & Polish:**
+- Story 8.2 (manual threat editing)
+- Story 8.3 (AI-assisted threat injection)
 - Story 2.3 (customization preview links)
-- Story 5.3 (API documentation)
+- Story 5.3 (API documentation — all endpoints)
 - Bug fixes, edge cases, testing
