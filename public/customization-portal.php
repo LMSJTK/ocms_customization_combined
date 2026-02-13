@@ -308,6 +308,85 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Translation Section (Story 6.3) -->
+                        <div id="sidebar-translate" class="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div class="flex items-center mb-2">
+                                <i class="fa-solid fa-language text-blue-500 mr-2"></i>
+                                <h3 class="font-semibold text-sm">Translate</h3>
+                            </div>
+                            <select id="translate-lang" class="w-full p-1.5 border rounded text-xs">
+                                <option value="">Select language...</option>
+                                <option value="es">Spanish</option><option value="fr">French</option><option value="de">German</option>
+                                <option value="pt-br">Portuguese (Brazil)</option><option value="ar">Arabic</option>
+                                <option value="ja">Japanese</option><option value="ko">Korean</option><option value="it">Italian</option>
+                                <option value="nl">Dutch</option><option value="zh">Chinese (Simplified)</option>
+                                <option value="zh-tw">Chinese (Traditional)</option>
+                            </select>
+                            <button onclick="translateContent()" id="translate-btn" class="w-full bg-blue-600 text-white mt-2 py-1.5 rounded text-xs font-semibold hover:bg-blue-700">Translate</button>
+                            <div id="translate-actions" class="hidden mt-2 space-y-1">
+                                <button onclick="saveTranslationAsNew()" class="w-full border border-gray-300 py-1.5 rounded text-xs font-semibold hover:bg-gray-50">Save as New Template</button>
+                                <button onclick="applyTranslation()" class="w-full border border-gray-300 py-1.5 rounded text-xs font-semibold hover:bg-gray-50">Apply to Current</button>
+                            </div>
+                        </div>
+
+                        <!-- Quiz Section (Story 7.1 + 7.2) -->
+                        <div id="sidebar-quiz" class="border border-gray-200 rounded-lg p-4 bg-white">
+                            <div class="flex items-center mb-2">
+                                <i class="fa-solid fa-circle-question text-green-500 mr-2"></i>
+                                <h3 class="font-semibold text-sm">Quiz</h3>
+                            </div>
+                            <div class="flex items-center space-x-2 mb-2">
+                                <label class="text-xs text-gray-600">Questions:</label>
+                                <select id="quiz-num-questions" class="p-1 border rounded text-xs flex-1">
+                                    <option>2</option><option selected>3</option><option>4</option><option>5</option>
+                                </select>
+                            </div>
+                            <button onclick="generateQuiz()" id="generate-quiz-btn" class="w-full bg-green-600 text-white py-1.5 rounded text-xs font-semibold hover:bg-green-700">Generate Quiz</button>
+                            <div id="quiz-preview-panel" class="hidden mt-3 max-h-60 overflow-y-auto text-xs space-y-2"></div>
+                            <div id="quiz-actions" class="hidden mt-2 space-y-1">
+                                <button onclick="injectQuiz()" class="w-full bg-green-600 text-white py-1.5 rounded text-xs font-semibold hover:bg-green-700"><i class="fa-solid fa-plus mr-1"></i>Inject Quiz</button>
+                                <button onclick="removeQuiz()" class="w-full border border-red-300 text-red-600 py-1.5 rounded text-xs font-semibold hover:bg-red-50"><i class="fa-solid fa-trash mr-1"></i>Remove Quiz</button>
+                                <button onclick="generateQuiz()" class="w-full border border-gray-300 py-1.5 rounded text-xs font-semibold hover:bg-gray-50"><i class="fa-solid fa-rotate mr-1"></i>Regenerate</button>
+                            </div>
+                        </div>
+
+                        <!-- Threat Viewer & Editor (Stories 8.1, 8.2, 8.3) — email only -->
+                        <div id="sidebar-threats" class="hidden border border-gray-200 rounded-lg p-4 bg-white">
+                            <div class="flex items-center justify-between mb-2">
+                                <div class="flex items-center">
+                                    <i class="fa-solid fa-shield-halved text-orange-500 mr-2"></i>
+                                    <h3 class="font-semibold text-sm">Threat Indicators</h3>
+                                </div>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="checkbox" id="threat-view-toggle" class="sr-only peer" onchange="toggleThreatView()">
+                                    <div class="relative w-8 h-4 bg-gray-200 peer-checked:bg-orange-500 rounded-full transition-colors">
+                                        <div class="absolute left-0.5 top-0.5 w-3 h-3 bg-white rounded-full transition-transform peer-checked:translate-x-4"></div>
+                                    </div>
+                                </label>
+                            </div>
+
+                            <!-- Difficulty badge -->
+                            <div id="threat-difficulty" class="mb-2"></div>
+
+                            <!-- Cue summary by category -->
+                            <div id="threat-summary" class="space-y-1 max-h-48 overflow-y-auto text-xs"></div>
+
+                            <!-- Threat Edit Panel (Story 8.2) -->
+                            <div id="threat-edit-panel" class="hidden mt-3 border-t pt-3">
+                                <h4 class="font-semibold text-xs mb-2">Edit Cue</h4>
+                                <select id="threat-cue-select" class="w-full p-1.5 border rounded text-xs mb-2"></select>
+                                <div class="flex space-x-1">
+                                    <button onclick="addCueToElement()" class="flex-1 bg-orange-500 text-white py-1 rounded text-xs font-semibold hover:bg-orange-600">Set Cue</button>
+                                    <button onclick="removeCueFromElement()" class="flex-1 border border-red-300 text-red-600 py-1 rounded text-xs font-semibold hover:bg-red-50">Remove</button>
+                                </div>
+                            </div>
+
+                            <!-- AI Threat Injection (Story 8.3) -->
+                            <div class="mt-3 border-t pt-3">
+                                <button onclick="showThreatInjectionModal()" class="w-full bg-orange-500 text-white py-1.5 rounded text-xs font-semibold hover:bg-orange-600"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Add Threats with AI</button>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Bottom: HTML Editor Toggle -->
@@ -333,6 +412,29 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             </div>
         </div>
     </main>
+
+    <!-- Threat Injection Modal (Story 8.3) -->
+    <div id="threat-injection-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-lg font-bold">AI-Assisted Threat Injection</h2>
+                <button onclick="closeThreatModal()" class="text-gray-400 hover:text-gray-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <p class="text-sm text-gray-600 mb-4">Select threat types to inject into the email. Claude will modify the content to include these indicators.</p>
+            <div id="threat-checklist" class="space-y-3 max-h-64 overflow-y-auto mb-4"></div>
+            <div class="flex items-center space-x-3 mb-4">
+                <label class="text-sm font-medium">Intensity:</label>
+                <select id="threat-intensity" class="p-1.5 border rounded text-sm">
+                    <option value="subtle">Subtle (hard to detect)</option>
+                    <option value="obvious">Obvious (easy to detect)</option>
+                </select>
+            </div>
+            <div class="flex justify-end space-x-2">
+                <button onclick="closeThreatModal()" class="px-4 py-2 border rounded-lg text-sm font-semibold hover:bg-gray-50">Cancel</button>
+                <button onclick="executeThreatInjection()" id="inject-threats-btn" class="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-semibold hover:bg-orange-600">Generate</button>
+            </div>
+        </div>
+    </div>
 
     <script>
     (function() {
@@ -361,6 +463,10 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         let selectedElement = null;
         let editHistory = [];
         let autoSaveTimer = null;
+        let currentContentType = null;
+        let threatTaxonomy = null;
+        let lastTranslatedHtml = null;
+        let lastQuizData = null;
 
         // ── Toast ───────────────────────────────────────────────
         function toast(msg, type = 'success') {
@@ -648,11 +754,16 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 const content = (data.content || [])[0];
                 if (!content) throw new Error('Content not found');
 
+                currentContentType = content.content_type;
                 const html = content.entry_body_html || content.email_body_html || '';
                 originalHtml = html;
                 document.getElementById('editor-title').value = content.title || 'Untitled';
                 updateEditorStatus('draft');
                 loadPreview(html);
+
+                // Show threat sidebar for email content
+                document.getElementById('sidebar-threats').classList.toggle('hidden', currentContentType !== 'email');
+                if (currentContentType === 'email') loadThreatTaxonomy();
 
                 // Load brand kit
                 if (COMPANY_ID) {
@@ -974,6 +1085,352 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         // ── Utilities ───────────────────────────────────────────
         function esc(str) { const d = document.createElement('div'); d.textContent = str || ''; return d.innerHTML; }
         function formatDate(d) { if (!d) return ''; try { return new Date(d).toLocaleDateString(); } catch(e) { return d; } }
+
+        // ═════════════════════════════════════════════════════════
+        // STORY 6.3: Translation UI
+        // ═════════════════════════════════════════════════════════
+        window.translateContent = async function() {
+            const lang = document.getElementById('translate-lang').value;
+            if (!lang) { toast('Select a language', 'error'); return; }
+            if (!currentContentId) return;
+
+            const btn = document.getElementById('translate-btn');
+            btn.innerHTML = '<span class="spinner"></span> Translating...';
+            btn.disabled = true;
+
+            try {
+                const data = await api('translate-content.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ content_id: currentContentId, target_language: lang })
+                });
+                lastTranslatedHtml = data.html;
+                loadPreview(data.html);
+                document.getElementById('translate-actions').classList.remove('hidden');
+                toast('Translated to ' + lang);
+            } catch (e) {
+                toast('Translation failed: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = 'Translate';
+                btn.disabled = false;
+            }
+        };
+
+        window.saveTranslationAsNew = async function() {
+            if (!lastTranslatedHtml || !currentContentId) return;
+            const lang = document.getElementById('translate-lang').value;
+            try {
+                const data = await api('translate-content.php?action=save', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        content_id: currentContentId,
+                        target_language: lang,
+                        translated_html: lastTranslatedHtml
+                    })
+                });
+                toast('Saved as new template: ' + data.title);
+                document.getElementById('translate-actions').classList.add('hidden');
+            } catch (e) {
+                toast('Save failed: ' + e.message, 'error');
+            }
+        };
+
+        window.applyTranslation = function() {
+            if (lastTranslatedHtml) {
+                // Keep the translated HTML as the current working version
+                document.getElementById('translate-actions').classList.add('hidden');
+                toast('Translation applied to current editor');
+                scheduleAutoSave();
+            }
+        };
+
+        // ═════════════════════════════════════════════════════════
+        // STORIES 7.1 + 7.2: Quiz Generation UI
+        // ═════════════════════════════════════════════════════════
+        window.generateQuiz = async function() {
+            if (!currentContentId) return;
+            const numQ = document.getElementById('quiz-num-questions').value;
+            const btn = document.getElementById('generate-quiz-btn');
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+            btn.disabled = true;
+
+            try {
+                const data = await api('generate-questions.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ content_id: currentContentId, num_questions: parseInt(numQ) })
+                });
+                lastQuizData = data;
+                renderQuizPreview(data.questions || []);
+                document.getElementById('quiz-actions').classList.remove('hidden');
+                toast('Quiz generated (' + (data.questions || []).length + ' questions)');
+            } catch (e) {
+                toast('Quiz generation failed: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = 'Generate Quiz';
+                btn.disabled = false;
+            }
+        };
+
+        function renderQuizPreview(questions) {
+            const panel = document.getElementById('quiz-preview-panel');
+            panel.classList.remove('hidden');
+            panel.innerHTML = questions.map((q, i) => {
+                const options = (q.options || []).map((opt, j) => {
+                    const isCorrect = j === q.correct_index || opt === q.correct_answer;
+                    return '<div class="pl-3 py-0.5 ' + (isCorrect ? 'text-green-700 font-semibold' : '') + '">' +
+                        String.fromCharCode(65 + j) + '. ' + esc(opt) + (isCorrect ? ' <i class="fa-solid fa-check"></i>' : '') + '</div>';
+                }).join('');
+                return '<div class="border rounded p-2 bg-gray-50"><div class="font-semibold">' + (i+1) + '. ' + esc(q.question) + '</div>' + options + '</div>';
+            }).join('');
+        }
+
+        window.injectQuiz = async function() {
+            if (!lastQuizData || !lastQuizData.quiz_html) { toast('Generate a quiz first', 'error'); return; }
+
+            // If working on a customization, inject into customization HTML
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+
+            // Remove existing quiz if present
+            const existing = doc.getElementById('ocms-quiz-section');
+            if (existing) existing.remove();
+
+            // Inject quiz HTML before closing body
+            const quizDiv = doc.createElement('div');
+            quizDiv.id = 'ocms-quiz-section';
+            quizDiv.innerHTML = lastQuizData.quiz_html;
+            doc.body.appendChild(quizDiv);
+
+            // Also inject the quiz JS if not present
+            if (!doc.querySelector('script[src*="ocms-quiz.js"]')) {
+                const script = doc.createElement('script');
+                script.src = '<?php echo htmlspecialchars($basePath); ?>/js/ocms-quiz.js';
+                doc.body.appendChild(script);
+            }
+
+            toast('Quiz injected');
+            scheduleAutoSave();
+        };
+
+        window.removeQuiz = function() {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+            const quizSection = doc.getElementById('ocms-quiz-section');
+            if (quizSection) quizSection.remove();
+            const quizScript = doc.querySelector('script[src*="ocms-quiz.js"]');
+            if (quizScript) quizScript.remove();
+            toast('Quiz removed');
+            scheduleAutoSave();
+        };
+
+        // ═════════════════════════════════════════════════════════
+        // STORY 8.1: Threat Indicator Viewer
+        // ═════════════════════════════════════════════════════════
+        async function loadThreatTaxonomy() {
+            if (threatTaxonomy) return;
+            try {
+                const data = await api('threat-taxonomy.php');
+                threatTaxonomy = data.taxonomy;
+                populateThreatCueSelect();
+                populateThreatChecklist();
+            } catch (e) {
+                console.error('Failed to load threat taxonomy:', e);
+            }
+        }
+
+        function populateThreatCueSelect() {
+            const sel = document.getElementById('threat-cue-select');
+            sel.innerHTML = '<option value="">Select cue...</option>';
+            (threatTaxonomy || []).forEach(cat => {
+                const group = document.createElement('optgroup');
+                group.label = cat.type;
+                cat.cues.forEach(cue => {
+                    const opt = document.createElement('option');
+                    opt.value = cue.name;
+                    opt.textContent = cue.label;
+                    group.appendChild(opt);
+                });
+                sel.appendChild(group);
+            });
+        }
+
+        window.toggleThreatView = function() {
+            const active = document.getElementById('threat-view-toggle').checked;
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+
+            if (active) {
+                // Inject threat highlight styles
+                let style = doc.getElementById('ocms-threat-styles');
+                if (!style) {
+                    style = doc.createElement('style');
+                    style.id = 'ocms-threat-styles';
+                    doc.head.appendChild(style);
+                }
+                const colorMap = {};
+                (threatTaxonomy || []).forEach(cat => cat.cues.forEach(c => colorMap[c.name] = cat.color));
+
+                let css = '';
+                Object.entries(colorMap).forEach(([name, color]) => {
+                    css += '[data-cue="' + name + '"] { outline: 2px solid ' + color + ' !important; background-color: ' + color + '20 !important; cursor: pointer; }\n';
+                });
+                style.textContent = css;
+
+                // Build summary
+                buildThreatSummary(doc);
+
+                // Click handler for threat editing (Story 8.2)
+                doc.addEventListener('click', onThreatElementClick);
+            } else {
+                const style = doc.getElementById('ocms-threat-styles');
+                if (style) style.remove();
+                document.getElementById('threat-summary').innerHTML = '';
+                document.getElementById('threat-difficulty').innerHTML = '';
+                document.getElementById('threat-edit-panel').classList.add('hidden');
+                doc.removeEventListener('click', onThreatElementClick);
+            }
+        };
+
+        function buildThreatSummary(doc) {
+            const cueEls = doc.querySelectorAll('[data-cue]');
+            const cueCount = {};
+            cueEls.forEach(el => {
+                const cue = el.getAttribute('data-cue');
+                cueCount[cue] = (cueCount[cue] || 0) + 1;
+            });
+
+            const totalCues = Object.keys(cueCount).length;
+            let difficulty = 'least';
+            if (totalCues >= 6) difficulty = 'very';
+            else if (totalCues >= 3) difficulty = 'moderately';
+
+            const diffColors = { least: '#EF4444', moderately: '#F59E0B', very: '#10B981' };
+            document.getElementById('threat-difficulty').innerHTML =
+                '<span class="status-badge" style="background:' + diffColors[difficulty] + '20;color:' + diffColors[difficulty] + ';">' +
+                difficulty.charAt(0).toUpperCase() + difficulty.slice(1) + ' Difficult (' + totalCues + ' cues)</span>';
+
+            let html = '';
+            (threatTaxonomy || []).forEach(cat => {
+                const catCues = cat.cues.filter(c => cueCount[c.name]);
+                if (!catCues.length) return;
+                html += '<div class="border-l-2 pl-2 mb-1" style="border-color:' + cat.color + ';">' +
+                    '<div class="font-semibold" style="color:' + cat.color + ';">' + esc(cat.type) + ' (' + catCues.length + ')</div>';
+                catCues.forEach(c => {
+                    html += '<div class="text-gray-600 cursor-pointer hover:text-blue-600" onclick="scrollToCue(\'' + c.name + '\')">' +
+                        esc(c.label) + (cueCount[c.name] > 1 ? ' x' + cueCount[c.name] : '') + '</div>';
+                });
+                html += '</div>';
+            });
+            document.getElementById('threat-summary').innerHTML = html || '<p class="text-gray-400">No threat indicators found</p>';
+        }
+
+        window.scrollToCue = function(cueName) {
+            const doc = iframe.contentDocument;
+            if (!doc) return;
+            const el = doc.querySelector('[data-cue="' + cueName + '"]');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        };
+
+        // ═════════════════════════════════════════════════════════
+        // STORY 8.2: Manual Threat Editor
+        // ═════════════════════════════════════════════════════════
+        let threatSelectedElement = null;
+
+        function onThreatElementClick(e) {
+            e.preventDefault();
+            const el = e.target.closest('[data-cue]') || e.target;
+            threatSelectedElement = el;
+
+            const panel = document.getElementById('threat-edit-panel');
+            panel.classList.remove('hidden');
+
+            const currentCue = el.getAttribute('data-cue') || '';
+            document.getElementById('threat-cue-select').value = currentCue;
+        }
+
+        window.addCueToElement = function() {
+            if (!threatSelectedElement) return;
+            const cue = document.getElementById('threat-cue-select').value;
+            if (!cue) { toast('Select a cue type', 'error'); return; }
+
+            threatSelectedElement.setAttribute('data-cue', cue);
+            editHistory.push({ action: 'add_cue', cue, timestamp: new Date().toISOString() });
+
+            // Refresh highlights
+            const doc = iframe.contentDocument;
+            if (doc) buildThreatSummary(doc);
+            toast('Cue set: ' + cue);
+            scheduleAutoSave();
+        };
+
+        window.removeCueFromElement = function() {
+            if (!threatSelectedElement) return;
+            const oldCue = threatSelectedElement.getAttribute('data-cue');
+            threatSelectedElement.removeAttribute('data-cue');
+            document.getElementById('threat-edit-panel').classList.add('hidden');
+
+            if (oldCue) editHistory.push({ action: 'remove_cue', cue: oldCue, timestamp: new Date().toISOString() });
+
+            const doc = iframe.contentDocument;
+            if (doc) buildThreatSummary(doc);
+            toast('Cue removed');
+            scheduleAutoSave();
+        };
+
+        // ═════════════════════════════════════════════════════════
+        // STORY 8.3: AI Threat Injection
+        // ═════════════════════════════════════════════════════════
+        function populateThreatChecklist() {
+            const container = document.getElementById('threat-checklist');
+            container.innerHTML = (threatTaxonomy || []).map(cat =>
+                '<div><div class="font-semibold text-sm mb-1" style="color:' + cat.color + ';">' + esc(cat.type) + '</div>' +
+                cat.cues.map(c =>
+                    '<label class="flex items-center space-x-2 text-sm py-0.5 cursor-pointer">' +
+                    '<input type="checkbox" class="threat-check rounded" value="' + c.name + '">' +
+                    '<span>' + esc(c.label) + '</span></label>'
+                ).join('') + '</div>'
+            ).join('');
+        }
+
+        window.showThreatInjectionModal = function() {
+            if (!threatTaxonomy) { toast('Taxonomy not loaded', 'error'); return; }
+            document.getElementById('threat-injection-modal').classList.remove('hidden');
+        };
+
+        window.closeThreatModal = function() {
+            document.getElementById('threat-injection-modal').classList.add('hidden');
+        };
+
+        window.executeThreatInjection = async function() {
+            const selected = Array.from(document.querySelectorAll('.threat-check:checked')).map(cb => cb.value);
+            if (!selected.length) { toast('Select at least one threat type', 'error'); return; }
+
+            const intensity = document.getElementById('threat-intensity').value;
+            const btn = document.getElementById('inject-threats-btn');
+            btn.innerHTML = '<span class="spinner"></span> Generating...';
+            btn.disabled = true;
+
+            try {
+                const html = getIframeHtml();
+                const data = await api('inject-threats.php', {
+                    method: 'POST',
+                    body: JSON.stringify({ html, threat_types: selected, intensity })
+                });
+
+                loadPreview(data.html);
+                closeThreatModal();
+
+                // Re-enable threat view if it was active
+                if (document.getElementById('threat-view-toggle').checked) {
+                    setTimeout(() => toggleThreatView(), 200);
+                }
+                toast('Threats injected: ' + (data.injected_cues || selected).join(', '));
+            } catch (e) {
+                toast('Injection failed: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = 'Generate';
+                btn.disabled = false;
+            }
+        };
 
         // ── Init ────────────────────────────────────────────────
         const openContent = <?php echo json_encode($openContentId); ?>;

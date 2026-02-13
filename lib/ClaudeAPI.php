@@ -1047,4 +1047,81 @@ JAVASCRIPT;
             'target_language' => $targetLang,
         ];
     }
+
+    /**
+     * Inject threat indicators into email HTML using AI
+     *
+     * @param string $html Email HTML content
+     * @param array $threatTypes Array of cue names to inject (e.g. ['sense-of-urgency', 'domain-spoofing'])
+     * @param string $intensity 'subtle' or 'obvious'
+     * @return array ['html' => modified HTML, 'injected_cues' => array, 'difficulty' => string]
+     */
+    public function injectThreats($html, $threatTypes, $intensity = 'subtle') {
+        $contentSize = strlen($html);
+        if ($contentSize > $this->maxContentSize) {
+            throw new Exception("Content size ({$contentSize} bytes) exceeds maximum for threat injection");
+        }
+
+        require_once '/var/www/html/lib/ThreatTaxonomy.php';
+        $cueTypes = ThreatTaxonomy::getCueTypesForPrompt();
+
+        // Build description of requested threats
+        $requestedCues = [];
+        foreach ($cueTypes as $category) {
+            foreach ($category['cues'] as $cue) {
+                if (in_array($cue['name'], $threatTypes)) {
+                    $requestedCues[] = $cue['name'] . ' (' . $category['type'] . '): ' . $cue['criteria'];
+                }
+            }
+        }
+        $cueList = implode("\n", $requestedCues);
+
+        $intensityGuide = $intensity === 'subtle'
+            ? 'Make the threats well-disguised and realistic. Typos should be minor, urgency should feel professional, domains should be plausible.'
+            : 'Make the threats more apparent and easier to detect. Clear grammatical errors, obvious urgency, clearly fake domains.';
+
+        // Protect sensitive blocks and file references
+        $protected = $this->protectSensitiveBlocks($html);
+        $tokenized = $this->tokenizeReferences($protected['html']);
+
+        $systemPrompt = "You are a phishing simulation expert. Modify the following email HTML to introduce specific threat indicators.\n\n" .
+            "THREAT INDICATORS TO INJECT:\n{$cueList}\n\n" .
+            "INTENSITY: {$intensity}\n{$intensityGuide}\n\n" .
+            "RULES:\n" .
+            "1. Modify text content and attributes to introduce each requested threat indicator\n" .
+            "2. Wrap each introduced threat element with a data-cue attribute: data-cue=\"cue-name\"\n" .
+            "3. Preserve ALL existing HTML structure, data-cue/data-tag attributes, inline styles\n" .
+            "4. Preserve ALL placeholder tokens (__ASSET_REF_XXXX__, __PROTECTED_BLOCK_XXXX__)\n" .
+            "5. Keep changes contextually appropriate for the email's subject matter\n" .
+            "6. Do NOT add explanations or markdown — return ONLY the modified HTML\n" .
+            "7. Every new threat element MUST have a data-cue attribute so it can be identified";
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => "Inject these threats into the email HTML: " . implode(', ', $threatTypes) . "\n\nReturn ONLY the modified HTML:\n\n" . $tokenized['html']
+            ]
+        ];
+
+        $response = $this->sendRequest($messages, $systemPrompt);
+
+        $modifiedHtml = $this->stripMarkdownCodeBlocks($response);
+        $modifiedHtml = $this->extractHTMLOnly($modifiedHtml);
+        $modifiedHtml = $this->restoreReferences($modifiedHtml, $tokenized['referenceMap']);
+        $modifiedHtml = $this->restoreProtectedBlocks($modifiedHtml, $protected['protectedBlocks']);
+
+        // Determine difficulty based on total cue count
+        $cueCount = preg_match_all('/data-cue=["\']([^"\']+)["\']/i', $modifiedHtml, $matches);
+        $uniqueCues = array_unique($matches[1] ?? []);
+        $numCues = count($uniqueCues);
+        $difficulty = 'least';
+        if ($numCues >= 6) $difficulty = 'very';
+        elseif ($numCues >= 3) $difficulty = 'moderately';
+
+        return [
+            'html' => $modifiedHtml,
+            'injected_cues' => $threatTypes,
+            'difficulty' => $difficulty,
+        ];
+    }
 }
