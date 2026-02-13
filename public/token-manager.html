@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Manager - OCMS Testing Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #dfe6e9;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        button.danger {
+            background: #e74c3c;
+        }
+
+        button.danger:hover {
+            background: #c0392b;
+        }
+
+        button.secondary {
+            background: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .token-list {
+            margin-top: 20px;
+        }
+
+        .token-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .token-info {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .token-info h3 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 16px;
+        }
+
+        .token-info p {
+            color: #7f8c8d;
+            font-size: 13px;
+        }
+
+        .token-value {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            word-break: break-all;
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .token-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .token-actions button {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .login-section {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .login-section input {
+            max-width: 300px;
+            margin: 10px auto;
+        }
+
+        #admin-content {
+            display: none;
+        }
+
+        .new-token-result {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .new-token-result h4 {
+            color: #155724;
+            margin-bottom: 10px;
+        }
+
+        .new-token-result .token-display {
+            font-family: monospace;
+            background: white;
+            padding: 12px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .password-section {
+            border-top: 1px solid #e1e8ed;
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="login.html" class="back-link">&larr; Back to Login</a>
+            <h1>Token Manager</h1>
+            <p class="subtitle">Create and manage access tokens for the testing tool</p>
+        </header>
+
+        <div id="alert" class="alert"></div>
+
+        <!-- Admin Login -->
+        <div id="admin-login" class="card">
+            <div class="login-section">
+                <h2>Admin Authentication Required</h2>
+                <p style="color: #7f8c8d; margin-bottom: 20px;">Enter the admin password to manage tokens</p>
+                <form onsubmit="adminLogin(event)">
+                    <div class="form-group">
+                        <input type="password" id="admin-password" placeholder="Admin password" required>
+                    </div>
+                    <button type="submit">Authenticate</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Admin Content (shown after authentication) -->
+        <div id="admin-content">
+            <!-- Create Token -->
+            <div class="card">
+                <h2>Create New Token</h2>
+                <form onsubmit="createToken(event)">
+                    <div class="form-group">
+                        <label>Name / Description</label>
+                        <input type="text" id="token-name" placeholder="e.g., John Smith - QA Team" required>
+                        <small style="color: #7f8c8d; display: block; margin-top: 5px;">Identify who this token is for</small>
+                    </div>
+                    <button type="submit">Generate Token</button>
+                </form>
+
+                <div id="new-token-result" class="new-token-result" style="display: none;">
+                    <h4>Token Created Successfully!</h4>
+                    <p style="color: #155724; margin-bottom: 10px;">Copy and share this token with the user. It will only be shown once.</p>
+                    <div class="token-display" id="new-token-display"></div>
+                    <button onclick="copyNewToken()">Copy Token</button>
+                </div>
+            </div>
+
+            <!-- Existing Tokens -->
+            <div class="card">
+                <h2>Existing Tokens</h2>
+                <button onclick="loadTokens()" style="margin-bottom: 15px;">Refresh List</button>
+                <div id="token-list" class="token-list">
+                    <p style="color: #7f8c8d;">Loading tokens...</p>
+                </div>
+            </div>
+
+            <!-- Change Admin Password -->
+            <div class="card">
+                <div class="password-section">
+                    <h2>Change Admin Password</h2>
+                    <form onsubmit="changePassword(event)">
+                        <div class="form-group">
+                            <label>New Password</label>
+                            <input type="password" id="new-password" placeholder="Enter new password (min 6 characters)" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label>Confirm Password</label>
+                            <input type="password" id="confirm-password" placeholder="Confirm new password" required>
+                        </div>
+                        <button type="submit" class="secondary">Change Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect base path
+        const currentPath = window.location.pathname;
+        let basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+        if (basePath.endsWith('/public')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/'));
+        }
+        const API_BASE = basePath + '/api';
+
+        let adminPassword = '';
+        let newTokenValue = '';
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = 'alert ' + type;
+            setTimeout(() => {
+                alert.className = 'alert';
+            }, 5000);
+        }
+
+        async function adminLogin(event) {
+            event.preventDefault();
+            adminPassword = document.getElementById('admin-password').value;
+
+            try {
+                const response = await fetch(API_BASE + '/tokens.php?admin_password=' + encodeURIComponent(adminPassword), {
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                if (response.status === 401) {
+                    showAlert('Invalid admin password', 'error');
+                    return;
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    document.getElementById('admin-login').style.display = 'none';
+                    document.getElementById('admin-content').style.display = 'block';
+                    loadTokens();
+                } else {
+                    showAlert(result.error || 'Authentication failed', 'error');
+                }
+            } catch (error) {
+                showAlert('Authentication failed: ' + error.message, 'error');
+            }
+        }
+
+        async function loadTokens() {
+            const tokenList = document.getElementById('token-list');
+            tokenList.innerHTML = '<p style="color: #7f8c8d;">Loading tokens...</p>';
+
+            try {
+                const response = await fetch(API_BASE + '/tokens.php?admin_password=' + encodeURIComponent(adminPassword));
+                const result = await response.json();
+
+                if (result.success) {
+                    if (result.tokens.length === 0) {
+                        tokenList.innerHTML = '<p style="color: #7f8c8d;">No tokens created yet</p>';
+                        return;
+                    }
+
+                    tokenList.innerHTML = result.tokens.map(token => `
+                        <div class="token-item">
+                            <div class="token-info">
+                                <h3>${escapeHtml(token.name)}</h3>
+                                <p>Created: ${escapeHtml(token.created_at)}${token.last_used ? ' | Last used: ' + escapeHtml(token.last_used) : ''}</p>
+                            </div>
+                            <div class="token-value">${escapeHtml(token.full_token)}</div>
+                            <div class="token-actions">
+                                <button onclick="copyToken('${escapeHtml(token.full_token)}')">Copy</button>
+                                <button class="danger" onclick="revokeToken('${escapeHtml(token.full_token)}', '${escapeHtml(token.name)}')">Revoke</button>
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    tokenList.innerHTML = '<p style="color: #e74c3c;">Failed to load tokens</p>';
+                }
+            } catch (error) {
+                tokenList.innerHTML = '<p style="color: #e74c3c;">Error loading tokens</p>';
+            }
+        }
+
+        async function createToken(event) {
+            event.preventDefault();
+            const name = document.getElementById('token-name').value.trim();
+
+            if (!name) {
+                showAlert('Please enter a name for the token', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_BASE + '/tokens.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'create',
+                        admin_password: adminPassword,
+                        name: name
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    newTokenValue = result.token;
+                    document.getElementById('new-token-display').textContent = result.token;
+                    document.getElementById('new-token-result').style.display = 'block';
+                    document.getElementById('token-name').value = '';
+                    showAlert('Token created successfully!', 'success');
+                    loadTokens();
+                } else {
+                    showAlert(result.error || 'Failed to create token', 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to create token: ' + error.message, 'error');
+            }
+        }
+
+        function copyToken(token) {
+            navigator.clipboard.writeText(token);
+            showAlert('Token copied to clipboard!', 'success');
+        }
+
+        function copyNewToken() {
+            navigator.clipboard.writeText(newTokenValue);
+            showAlert('Token copied to clipboard!', 'success');
+        }
+
+        async function revokeToken(token, name) {
+            if (!confirm(`Are you sure you want to revoke the token for "${name}"? This cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(API_BASE + '/tokens.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'revoke',
+                        admin_password: adminPassword,
+                        token: token
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadTokens();
+                } else {
+                    showAlert(result.error || 'Failed to revoke token', 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to revoke token: ' + error.message, 'error');
+            }
+        }
+
+        async function changePassword(event) {
+            event.preventDefault();
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (newPassword !== confirmPassword) {
+                showAlert('Passwords do not match', 'error');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                showAlert('Password must be at least 6 characters', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(API_BASE + '/tokens.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'change_password',
+                        admin_password: adminPassword,
+                        new_password: newPassword
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    adminPassword = newPassword;
+                    document.getElementById('new-password').value = '';
+                    document.getElementById('confirm-password').value = '';
+                    showAlert('Admin password changed successfully!', 'success');
+                } else {
+                    showAlert(result.error || 'Failed to change password', 'error');
+                }
+            } catch (error) {
+                showAlert('Failed to change password: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

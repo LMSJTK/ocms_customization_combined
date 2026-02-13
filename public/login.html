@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - OCMS Testing Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #123447 20%, #D65577 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .login-container {
+            background: white;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #2c3e50;
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .logo p {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 500;
+        }
+
+        input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid #e1e8ed;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="password"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .alert {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .alert.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #95a5a6;
+            font-size: 13px;
+        }
+
+        .footer a {
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="logo">
+            <h1>OCMS Testing Tool</h1>
+            <p>Enter your access token to continue</p>
+        </div>
+
+        <div id="alert" class="alert"></div>
+
+        <form id="login-form" onsubmit="login(event)">
+            <div class="form-group">
+                <label for="token">Access Token</label>
+                <input type="password" id="token" name="token" placeholder="Paste your access token here" required>
+            </div>
+            <button type="submit" id="login-btn">Login</button>
+        </form>
+
+        <div class="footer">
+            <p>Need access? Contact your administrator.</p>
+            <p style="margin-top: 10px;"><a href="token-manager.html">Token Manager (Admin)</a></p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect base path
+        const currentPath = window.location.pathname;
+        let basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+        if (basePath.endsWith('/public')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/'));
+        }
+        const API_BASE = basePath + '/api';
+
+        // Check if already logged in
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedToken = sessionStorage.getItem('ocms_access_token');
+            if (savedToken) {
+                // Validate the saved token
+                validateToken(savedToken).then(valid => {
+                    if (valid) {
+                        window.location.href = 'index.html';
+                    }
+                });
+            }
+        });
+
+        async function validateToken(token) {
+            try {
+                const response = await fetch(API_BASE + '/validate-session.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+                const result = await response.json();
+                return result.success && result.valid;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        async function login(event) {
+            event.preventDefault();
+
+            const token = document.getElementById('token').value.trim();
+            const loginBtn = document.getElementById('login-btn');
+            const alert = document.getElementById('alert');
+
+            if (!token) {
+                showAlert('Please enter your access token', 'error');
+                return;
+            }
+
+            loginBtn.disabled = true;
+            loginBtn.textContent = 'Validating...';
+
+            try {
+                const response = await fetch(API_BASE + '/validate-session.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token: token })
+                });
+
+                const result = await response.json();
+
+                if (result.success && result.valid) {
+                    // Store token in session storage
+                    sessionStorage.setItem('ocms_access_token', token);
+                    sessionStorage.setItem('ocms_user_name', result.name);
+
+                    showAlert('Login successful! Redirecting...', 'success');
+
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 500);
+                } else {
+                    showAlert(result.error || 'Invalid token', 'error');
+                    loginBtn.disabled = false;
+                    loginBtn.textContent = 'Login';
+                }
+            } catch (error) {
+                showAlert('Login failed: ' + error.message, 'error');
+                loginBtn.disabled = false;
+                loginBtn.textContent = 'Login';
+            }
+        }
+
+        function showAlert(message, type) {
+            const alert = document.getElementById('alert');
+            alert.textContent = message;
+            alert.className = 'alert ' + type;
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Awareness Dashboard (DEMO) - OCMS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="demo-data.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f8fafc;
+            min-height: 100vh;
+        }
+
+        .demo-banner {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 12px 20px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 30px; }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 { font-size: 24px; color: #1e293b; font-weight: 600; }
+
+        .nav-links { display: flex; gap: 15px; }
+        .nav-links a {
+            color: #64748b;
+            text-decoration: none;
+            font-size: 14px;
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: #e2e8f0; color: #1e293b; }
+
+        /* Info Icon & Tooltip Styles */
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            background: #e2e8f0;
+            color: #64748b;
+            border-radius: 50%;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: help;
+            margin-left: 6px;
+            position: relative;
+        }
+
+        .info-icon:hover { background: #cbd5e1; color: #475569; }
+
+        .tooltip {
+            position: absolute;
+            bottom: calc(100% + 10px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1e293b;
+            color: white;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: normal;
+            width: 280px;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.2s, visibility 0.2s;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            text-align: left;
+            line-height: 1.5;
+        }
+
+        .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #1e293b;
+        }
+
+        .info-icon:hover .tooltip { opacity: 1; visibility: visible; }
+
+        .tooltip-title { font-weight: 600; margin-bottom: 6px; color: #93c5fd; }
+        .tooltip-source { font-size: 11px; color: #94a3b8; margin-bottom: 4px; }
+        .tooltip-calc { font-family: monospace; font-size: 11px; background: #334155; padding: 4px 8px; border-radius: 4px; margin: 6px 0; display: block; }
+        .tooltip-breakdown { margin-top: 8px; padding-top: 8px; border-top: 1px solid #475569; }
+        .tooltip-breakdown li { font-size: 11px; margin: 4px 0; color: #cbd5e1; }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .card-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .card-icon.blue { background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%); color: #3b82f6; }
+        .card-icon.orange { background: linear-gradient(135deg, #ffedd5 0%, #fed7aa 100%); color: #f97316; }
+        .card-icon.purple { background: linear-gradient(135deg, #ede9fe 0%, #ddd6fe 100%); color: #8b5cf6; }
+        .card-icon.green { background: linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%); color: #22c55e; }
+
+        .card-icon svg { width: 24px; height: 24px; }
+        .card-content { flex: 1; }
+        .card-header-row { display: flex; align-items: center; }
+        .card-value { font-size: 32px; font-weight: 700; color: #1e293b; line-height: 1; }
+        .card-label { font-size: 14px; color: #64748b; margin-top: 4px; }
+        .card-change { font-size: 12px; margin-top: 6px; display: flex; align-items: center; gap: 4px; }
+        .card-change.positive { color: #22c55e; }
+        .card-change.negative { color: #ef4444; }
+        .card-change.neutral { color: #64748b; }
+
+        .trends-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        .trends-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .trends-title { display: flex; align-items: center; gap: 20px; }
+        .trends-title h2 { font-size: 20px; color: #1e293b; font-weight: 600; display: flex; align-items: center; }
+
+        .overall-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 16px;
+            border-radius: 8px;
+        }
+
+        .overall-indicator.declining { background: #fef2f2; color: #ef4444; }
+        .overall-indicator.improving { background: #f0fdf4; color: #22c55e; }
+        .overall-indicator.stable { background: #f8fafc; color: #64748b; }
+
+        .indicator-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+        }
+
+        .overall-indicator.declining .indicator-icon { background: #fee2e2; }
+        .overall-indicator.improving .indicator-icon { background: #dcfce7; }
+
+        .indicator-text { font-size: 13px; }
+        .indicator-text span { display: block; font-weight: 600; font-size: 15px; }
+
+        .filter-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-group { display: flex; gap: 4px; background: #f1f5f9; padding: 4px; border-radius: 8px; }
+        .filter-btn {
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #64748b;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+        .filter-btn:hover { color: #1e293b; }
+        .filter-btn.active { background: white; color: #1e293b; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+
+        .chart-container { height: 350px; margin-bottom: 24px; }
+
+        .topics-section { border-top: 1px solid #e2e8f0; padding-top: 24px; }
+        .topics-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+        .topics-header h3 { font-size: 14px; color: #64748b; font-weight: 500; display: flex; align-items: center; }
+        .show-all-btn { color: #3b82f6; font-size: 13px; text-decoration: none; cursor: pointer; }
+        .show-all-btn:hover { text-decoration: underline; }
+
+        .topics-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+        .topic-chip {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .topic-chip:hover { border-color: #cbd5e1; }
+        .topic-chip.selected { background: #eff6ff; border-color: #3b82f6; }
+        .topic-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #cbd5e1;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 12px;
+        }
+        .topic-chip.selected .topic-checkbox { background: #3b82f6; border-color: #3b82f6; color: white; }
+        .topic-name { font-size: 14px; color: #1e293b; font-weight: 500; }
+        .topic-trend { display: flex; align-items: center; gap: 6px; font-size: 12px; padding: 4px 8px; border-radius: 4px; }
+        .topic-trend.declining { background: #fef2f2; color: #ef4444; }
+        .topic-trend.improving { background: #f0fdf4; color: #22c55e; }
+        .topic-trend.stable { background: #f8fafc; color: #64748b; }
+        .topic-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+        .topic-dot.color-0 { background: #ef4444; }
+        .topic-dot.color-1 { background: #3b82f6; }
+        .topic-dot.color-2 { background: #22c55e; }
+        .topic-dot.color-3 { background: #f97316; }
+        .topic-dot.color-4 { background: #8b5cf6; }
+        .topic-dot.color-5 { background: #ec4899; }
+        .topic-dot.color-6 { background: #14b8a6; }
+
+        .breakdown-section { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .breakdown-card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .breakdown-card h3 { font-size: 16px; color: #1e293b; margin-bottom: 20px; font-weight: 600; display: flex; align-items: center; }
+        .breakdown-chart { height: 200px; }
+
+        .active-filters {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+
+        .active-filters strong { color: #1e293b; }
+
+        @media (max-width: 1200px) { .summary-cards { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) {
+            .summary-cards { grid-template-columns: 1fr; }
+            .trends-header { flex-direction: column; }
+            .breakdown-section { grid-template-columns: 1fr; }
+            .tooltip { width: 220px; left: 0; transform: translateX(-20%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-banner">
+        DEMO MODE - Using sample data for UI testing | Hover over <span style="background:#fff3;padding:2px 6px;border-radius:4px;">ⓘ</span> icons for data source explanations
+    </div>
+
+    <div class="container">
+        <div class="page-header">
+            <h1>Security Awareness Dashboard</h1>
+            <div class="nav-links">
+                <a href="trainings-demo.html">Training Campaigns</a>
+                <a href="training-dashboard-demo.html?id=tr-001">Sample Training</a>
+            </div>
+        </div>
+
+        <div class="active-filters" id="active-filters">
+            <strong>Active Filters:</strong> <span id="filter-summary">Loading...</span>
+        </div>
+
+        <div class="summary-cards">
+            <div class="summary-card">
+                <div class="card-icon blue">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <div class="card-value" id="total-recipients">-</div>
+                        <span class="info-icon" data-source="total_recipients">i</span>
+                    </div>
+                    <div class="card-label">Total Recipients</div>
+                    <div class="card-change neutral" id="total-change">-</div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="card-icon orange">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <div class="card-value" id="susceptible-rate">-</div>
+                        <span class="info-icon" data-source="susceptible_rate">i</span>
+                    </div>
+                    <div class="card-label">Susceptible Rate</div>
+                    <div class="card-change neutral" id="susceptible-change">-</div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="card-icon purple">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <div class="card-value" id="report-rate">-</div>
+                        <span class="info-icon" data-source="report_rate">i</span>
+                    </div>
+                    <div class="card-label">Report Rate</div>
+                    <div class="card-change neutral" id="report-change">-</div>
+                </div>
+            </div>
+
+            <div class="summary-card">
+                <div class="card-icon green">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                </div>
+                <div class="card-content">
+                    <div class="card-header-row">
+                        <div class="card-value" id="avg-competency">-</div>
+                        <span class="info-icon" data-source="average_competency">i</span>
+                    </div>
+                    <div class="card-label">Average Competency</div>
+                    <div class="card-change neutral" id="competency-change">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="trends-section">
+            <div class="trends-header">
+                <div class="trends-title">
+                    <h2>Competency Trends <span class="info-icon" data-source="competency_trend">i</span></h2>
+                    <div class="overall-indicator stable" id="overall-indicator">
+                        <div class="indicator-icon">↓</div>
+                        <div class="indicator-text">
+                            Overall Competency
+                            <span id="trend-label">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="filter-buttons">
+                    <div class="filter-group">
+                        <button class="filter-btn active" data-range="365">Last 365 days</button>
+                        <button class="filter-btn" data-range="30">Last 30 days</button>
+                        <button class="filter-btn" data-range="7">Last 7 days</button>
+                    </div>
+                    <div class="filter-group">
+                        <button class="filter-btn" data-aggregation="daily">Daily</button>
+                        <button class="filter-btn" data-aggregation="weekly">Weekly</button>
+                        <button class="filter-btn active" data-aggregation="monthly">Monthly</button>
+                    </div>
+                    <div class="filter-group">
+                        <button class="filter-btn" data-trend="declining">Declining</button>
+                        <button class="filter-btn" data-trend="improving">Improving</button>
+                        <button class="filter-btn active" data-trend="all">All</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="trendsChart"></canvas>
+            </div>
+
+            <div class="topics-section">
+                <div class="topics-header">
+                    <h3>Available Topics <span class="info-icon" data-source="topics">i</span></h3>
+                    <a class="show-all-btn" id="toggle-topics">Show all topics</a>
+                </div>
+                <div class="topics-grid" id="topics-grid"></div>
+            </div>
+        </div>
+
+        <div class="breakdown-section">
+            <div class="breakdown-card">
+                <h3>Risk Breakdown <span class="info-icon" data-source="risk_breakdown">i</span></h3>
+                <div class="breakdown-chart">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+            <div class="breakdown-card">
+                <h3>Action Breakdown <span class="info-icon" data-source="action_breakdown">i</span></h3>
+                <div class="breakdown-chart">
+                    <canvas id="actionChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let trendsChart = null;
+        let riskChart = null;
+        let actionChart = null;
+
+        let dashboardData = null;
+        let selectedTopics = new Set();
+        let currentRange = 365;
+        let currentAggregation = 'monthly';
+        let currentTrend = 'all';
+        let showAllTopics = false;
+
+        const CHART_COLORS = [
+            '#ef4444', '#3b82f6', '#22c55e', '#f97316',
+            '#8b5cf6', '#ec4899', '#14b8a6', '#eab308'
+        ];
+
+        // Initialize tooltips
+        function initTooltips() {
+            document.querySelectorAll('.info-icon[data-source]').forEach(icon => {
+                const sourceKey = icon.dataset.source;
+                const sourceInfo = DATA_SOURCES[sourceKey];
+
+                if (sourceInfo) {
+                    let tooltipHTML = `
+                        <div class="tooltip-title">${sourceInfo.title}</div>
+                        <div class="tooltip-source">Source: ${sourceInfo.source}</div>
+                        <code class="tooltip-calc">${sourceInfo.calculation}</code>
+                        <div>${sourceInfo.description}</div>
+                    `;
+
+                    if (sourceInfo.breakdown) {
+                        tooltipHTML += `<ul class="tooltip-breakdown">`;
+                        sourceInfo.breakdown.forEach(item => {
+                            tooltipHTML += `<li>${item}</li>`;
+                        });
+                        tooltipHTML += `</ul>`;
+                    }
+
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.innerHTML = tooltipHTML;
+                    icon.appendChild(tooltip);
+                }
+            });
+        }
+
+        function loadDashboard() {
+            // Generate data based on current filters
+            dashboardData = generateAggregatedData({
+                aggregation: currentAggregation,
+                dateRange: currentRange,
+                trendFilter: currentTrend
+            });
+
+            updateFilterSummary();
+            renderDashboard(dashboardData);
+        }
+
+        function updateFilterSummary() {
+            const rangeLabel = currentRange === 365 ? 'Last 365 days' : currentRange === 30 ? 'Last 30 days' : 'Last 7 days';
+            const aggLabel = currentAggregation.charAt(0).toUpperCase() + currentAggregation.slice(1);
+            const trendLabel = currentTrend === 'all' ? 'All trends' : currentTrend.charAt(0).toUpperCase() + currentTrend.slice(1) + ' only';
+
+            document.getElementById('filter-summary').textContent =
+                `${rangeLabel} | ${aggLabel} aggregation | ${trendLabel}`;
+        }
+
+        function renderDashboard(data) {
+            const { summary, risk_breakdown, action_breakdown, topics } = data;
+
+            document.getElementById('total-recipients').textContent = summary.total_recipients.toLocaleString();
+            updateChangeIndicator('total-change', summary.total_recipients_change, false);
+
+            document.getElementById('susceptible-rate').textContent = summary.susceptible_rate + '%';
+            updateChangeIndicator('susceptible-change', summary.susceptible_rate_change, true);
+
+            document.getElementById('report-rate').textContent = summary.report_rate + '%';
+            updateChangeIndicator('report-change', summary.report_rate_change, false);
+
+            document.getElementById('avg-competency').textContent = Math.round(summary.average_competency) + '%';
+            updateChangeIndicator('competency-change', summary.average_competency_change, false);
+
+            const indicator = document.getElementById('overall-indicator');
+            const trendLabel = document.getElementById('trend-label');
+            indicator.className = 'overall-indicator ' + summary.overall_trend;
+            trendLabel.textContent = capitalizeFirst(summary.overall_trend);
+
+            const indicatorIcon = indicator.querySelector('.indicator-icon');
+            indicatorIcon.textContent = summary.overall_trend === 'declining' ? '↓' : summary.overall_trend === 'improving' ? '↑' : '→';
+
+            // Reset topic selection when filters change significantly
+            if (selectedTopics.size === 0 && topics.length > 0) {
+                topics.slice(0, 4).forEach(t => selectedTopics.add(t.name));
+            }
+
+            // Ensure selected topics still exist in filtered data
+            const availableTopicNames = new Set(topics.map(t => t.name));
+            selectedTopics = new Set([...selectedTopics].filter(t => availableTopicNames.has(t)));
+            if (selectedTopics.size === 0 && topics.length > 0) {
+                topics.slice(0, Math.min(4, topics.length)).forEach(t => selectedTopics.add(t.name));
+            }
+
+            renderTopics(topics);
+            renderTrendsChart(topics);
+            renderRiskChart(risk_breakdown);
+            renderActionChart(action_breakdown);
+        }
+
+        function updateChangeIndicator(elementId, change, invertColors) {
+            const el = document.getElementById(elementId);
+            const isPositive = change > 0;
+            const isNegative = change < 0;
+
+            let className = 'card-change ';
+            let arrow = '';
+
+            if (isPositive) {
+                className += invertColors ? 'negative' : 'positive';
+                arrow = '↑';
+            } else if (isNegative) {
+                className += invertColors ? 'positive' : 'negative';
+                arrow = '↓';
+            } else {
+                className += 'neutral';
+            }
+
+            el.className = className;
+            el.textContent = `${arrow} ${Math.abs(change)} from last period`;
+        }
+
+        function renderTopics(topics) {
+            const container = document.getElementById('topics-grid');
+            const displayTopics = showAllTopics ? topics : topics.slice(0, 7);
+
+            if (topics.length === 0) {
+                container.innerHTML = '<div style="color:#64748b;padding:20px;">No topics match the current trend filter.</div>';
+                return;
+            }
+
+            container.innerHTML = displayTopics.map((topic, idx) => {
+                const isSelected = selectedTopics.has(topic.name);
+                const colorIdx = idx % CHART_COLORS.length;
+
+                return `
+                    <div class="topic-chip ${isSelected ? 'selected' : ''}"
+                         onclick="toggleTopic('${escapeHtml(topic.name)}')">
+                        <div class="topic-checkbox">${isSelected ? '✓' : ''}</div>
+                        <span class="topic-name">${escapeHtml(topic.name)}</span>
+                        <div class="topic-trend ${topic.trend}">
+                            ${topic.trend === 'declining' ? '↓' : topic.trend === 'improving' ? '↑' : '→'}
+                            ${capitalizeFirst(topic.trend)}
+                        </div>
+                        <div class="topic-dot color-${colorIdx}"></div>
+                    </div>
+                `;
+            }).join('');
+
+            const toggleBtn = document.getElementById('toggle-topics');
+            toggleBtn.style.display = topics.length > 7 ? 'block' : 'none';
+            toggleBtn.textContent = showAllTopics ? 'Show fewer' : 'Show all topics';
+        }
+
+        function toggleTopic(topicName) {
+            if (selectedTopics.has(topicName)) {
+                selectedTopics.delete(topicName);
+            } else {
+                selectedTopics.add(topicName);
+            }
+            renderTopics(dashboardData.topics);
+            renderTrendsChart(dashboardData.topics);
+        }
+
+        function renderTrendsChart(topics) {
+            const ctx = document.getElementById('trendsChart').getContext('2d');
+            if (trendsChart) trendsChart.destroy();
+
+            const allBuckets = new Set();
+            topics.filter(t => selectedTopics.has(t.name)).forEach(topic => {
+                (topic.time_series || []).forEach(ts => allBuckets.add(ts.bucket));
+            });
+
+            const sortedBuckets = Array.from(allBuckets).sort();
+
+            const bucketToLabel = {};
+            topics.filter(t => selectedTopics.has(t.name)).forEach(topic => {
+                (topic.time_series || []).forEach(ts => {
+                    bucketToLabel[ts.bucket] = ts.label;
+                });
+            });
+            const labels = sortedBuckets.map(b => bucketToLabel[b] || b);
+
+            const datasets = topics
+                .filter(t => selectedTopics.has(t.name))
+                .map((topic) => {
+                    const colorIdx = topics.findIndex(t => t.name === topic.name) % CHART_COLORS.length;
+                    const bucketMap = {};
+                    (topic.time_series || []).forEach(ts => bucketMap[ts.bucket] = ts.average_score);
+
+                    return {
+                        label: topic.name,
+                        data: sortedBuckets.map(b => bucketMap[b] || null),
+                        borderColor: CHART_COLORS[colorIdx],
+                        backgroundColor: CHART_COLORS[colorIdx] + '20',
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6,
+                        spanGaps: true
+                    };
+                });
+
+            trendsChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#1e293b',
+                            titleColor: '#f8fafc',
+                            bodyColor: '#f8fafc',
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y}%`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, max: 100, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } },
+                        x: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function renderRiskChart(breakdown) {
+            const ctx = document.getElementById('riskChart').getContext('2d');
+            if (riskChart) riskChart.destroy();
+
+            riskChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Low Risk (80-100)', 'Medium Risk (51-79)', 'High Risk (0-50)'],
+                    datasets: [{
+                        data: [breakdown.low, breakdown.medium, breakdown.high],
+                        backgroundColor: ['#22c55e', '#f97316', '#ef4444'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: { position: 'right', labels: { color: '#64748b', padding: 16, usePointStyle: true } }
+                    }
+                }
+            });
+        }
+
+        function renderActionChart(breakdown) {
+            const ctx = document.getElementById('actionChart').getContext('2d');
+            if (actionChart) actionChart.destroy();
+
+            actionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Reported', 'Ignored', 'Clicked', 'Pending'],
+                    datasets: [{
+                        data: [breakdown.reported, breakdown.ignored, breakdown.clicked, breakdown.pending],
+                        backgroundColor: ['#22c55e', '#64748b', '#ef4444', '#f97316'],
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, grid: { color: '#f1f5f9' }, ticks: { color: '#64748b' } },
+                        y: { grid: { display: false }, ticks: { color: '#64748b' } }
+                    }
+                }
+            });
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+        }
+
+        function capitalizeFirst(str) {
+            return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+        }
+
+        // Event listeners - NOW FUNCTIONAL
+        document.querySelectorAll('[data-range]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentRange = parseInt(this.dataset.range);
+                selectedTopics.clear(); // Reset selection on filter change
+                loadDashboard();
+            });
+        });
+
+        document.querySelectorAll('[data-aggregation]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-aggregation]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentAggregation = this.dataset.aggregation;
+                loadDashboard();
+            });
+        });
+
+        document.querySelectorAll('[data-trend]').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('[data-trend]').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentTrend = this.dataset.trend;
+                selectedTopics.clear(); // Reset selection on filter change
+                loadDashboard();
+            });
+        });
+
+        document.getElementById('toggle-topics').addEventListener('click', function() {
+            showAllTopics = !showAllTopics;
+            if (dashboardData) renderTopics(dashboardData.topics);
+        });
+
+        // Initialize
+        initTooltips();
+        loadDashboard();
+    </script>
+</body>
+</html>

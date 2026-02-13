@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Training Dashboard - OCMS</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+        }
+
+        .status-badge {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .status-badge.active {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-badge.draft {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-badge.completed {
+            background: #cce5ff;
+            color: #004085;
+        }
+
+        select {
+            padding: 8px 16px;
+            border: 1px solid #dfe6e9;
+            border-radius: 4px;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .metric-card h3 {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-card .value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .metric-card .value.susceptible {
+            color: #e74c3c;
+        }
+
+        .metric-card .value.success {
+            color: #27ae60;
+        }
+
+        .metric-card .percentage {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-card {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .chart-card h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .funnel-chart {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .funnel-bar {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .funnel-label {
+            width: 140px;
+            font-size: 13px;
+            color: #7f8c8d;
+            text-align: right;
+        }
+
+        .funnel-bar-container {
+            flex: 1;
+            background: #ecf0f1;
+            border-radius: 4px;
+            height: 30px;
+            overflow: hidden;
+        }
+
+        .funnel-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            padding-left: 10px;
+            color: white;
+            font-size: 13px;
+            font-weight: 500;
+            transition: width 0.5s;
+        }
+
+        .activity-section {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .activity-section h2 {
+            color: #2c3e50;
+            font-size: 18px;
+            padding: 20px 25px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .activity-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .activity-table th {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            text-align: left;
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .activity-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+        }
+
+        .activity-table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .status-pill {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .status-pill.clicked {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pill.completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status-pill.sent {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .status-pill.pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #7f8c8d;
+        }
+
+        .content-info {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .content-info-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .content-item {
+            font-size: 13px;
+        }
+
+        .content-item label {
+            color: #7f8c8d;
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .content-item span {
+            color: #2c3e50;
+        }
+
+        @media (max-width: 1200px) {
+            .metrics-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="trainings.html" class="back-link">&larr; Back to Trainings</a>
+            <div class="header-row">
+                <div>
+                    <h1 id="training-name">Loading...</h1>
+                    <p class="subtitle" id="training-meta"></p>
+                </div>
+                <div>
+                    <span class="status-badge" id="status-badge">-</span>
+                </div>
+            </div>
+            <div class="content-info" id="content-info" style="display: none;">
+                <div class="content-info-grid">
+                    <div class="content-item">
+                        <label>Email Template</label>
+                        <span id="content-email">-</span>
+                    </div>
+                    <div class="content-item">
+                        <label>Landing Page</label>
+                        <span id="content-landing">-</span>
+                    </div>
+                    <div class="content-item">
+                        <label>Immediate Education</label>
+                        <span id="content-training">-</span>
+                    </div>
+                    <div class="content-item">
+                        <label>Smart Reinforcement</label>
+                        <span id="content-followon">-</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="metrics-grid" id="metrics-grid">
+            <div class="metric-card">
+                <h3>Invited</h3>
+                <div class="value" id="metric-invited">-</div>
+            </div>
+            <div class="metric-card">
+                <h3>Completed</h3>
+                <div class="value success" id="metric-completed">-</div>
+                <div class="percentage" id="metric-completed-pct"></div>
+            </div>
+            <div class="metric-card">
+                <h3>Susceptible</h3>
+                <div class="value susceptible" id="metric-susceptible">-</div>
+                <div class="percentage" id="metric-susceptible-pct"></div>
+            </div>
+            <div class="metric-card">
+                <h3>Immediate Education</h3>
+                <div class="value" id="metric-immediate">-</div>
+            </div>
+            <div class="metric-card">
+                <h3>Smart Reinforcement</h3>
+                <div class="value" id="metric-reinforcement">-</div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Completion Over Time</h2>
+                <div class="chart-container">
+                    <canvas id="completionChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Training Funnel</h2>
+                <div class="funnel-chart" id="funnel-chart">
+                    <!-- Funnel bars will be inserted here -->
+                </div>
+            </div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h2>Susceptibility Over Time</h2>
+                <div class="chart-container">
+                    <canvas id="susceptibleChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h2>Status Breakdown</h2>
+                <div class="chart-container">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="activity-section">
+            <h2>Recent Activity</h2>
+            <table class="activity-table">
+                <thead>
+                    <tr>
+                        <th>Recipient</th>
+                        <th>Status</th>
+                        <th>Clicked</th>
+                        <th>Completed</th>
+                        <th>Score</th>
+                        <th>Last Action</th>
+                    </tr>
+                </thead>
+                <tbody id="activity-body">
+                    <tr><td colspan="6" class="loading">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect base path
+        const currentPath = window.location.pathname;
+        let basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+        if (basePath.endsWith('/public')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/'));
+        }
+        const API_BASE = basePath + '/api';
+
+        const BEARER_TOKEN = '45780363-a30a-4009-b4bc-e897aaa1a4f1';
+
+        let completionChart = null;
+        let susceptibleChart = null;
+        let statusChart = null;
+
+        function getAuthHeaders() {
+            return { 'Authorization': 'Bearer ' + BEARER_TOKEN };
+        }
+
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function getTrainingId() {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('id');
+        }
+
+        async function loadDashboard() {
+            const trainingId = getTrainingId();
+            if (!trainingId) {
+                document.getElementById('training-name').textContent = 'Error: No training ID provided';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/training-dashboard.php?training_id=${encodeURIComponent(trainingId)}`, {
+                    headers: getAuthHeaders()
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load dashboard');
+                }
+
+                renderDashboard(data);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('training-name').textContent = 'Error: ' + error.message;
+            }
+        }
+
+        function renderDashboard(data) {
+            const { training, metrics, charts, recent_activity } = data;
+
+            // Header
+            document.getElementById('training-name').textContent = training.name || 'Untitled Training';
+            document.getElementById('training-meta').textContent = `Created: ${formatDate(training.created_at)} | Type: ${training.training_type || 'N/A'}`;
+
+            const statusBadge = document.getElementById('status-badge');
+            statusBadge.textContent = training.status || 'Draft';
+            statusBadge.className = 'status-badge ' + (training.status || 'draft').toLowerCase();
+
+            // Content info
+            if (training.content) {
+                document.getElementById('content-info').style.display = 'block';
+                document.getElementById('content-email').textContent = training.content.email || '-';
+                document.getElementById('content-landing').textContent = training.content.landing || '-';
+                document.getElementById('content-training').textContent = training.content.training || '-';
+                document.getElementById('content-followon').textContent = training.content.follow_on || '-';
+            }
+
+            // Metrics
+            document.getElementById('metric-invited').textContent = metrics.invited.toLocaleString();
+            document.getElementById('metric-completed').textContent = metrics.immediate_education.toLocaleString();
+            document.getElementById('metric-completed-pct').textContent = `${metrics.completion_percentage}%`;
+            document.getElementById('metric-susceptible').textContent = metrics.susceptible.toLocaleString();
+
+            const susceptiblePct = metrics.invited > 0 ? ((metrics.susceptible / metrics.invited) * 100).toFixed(1) : 0;
+            document.getElementById('metric-susceptible-pct').textContent = `${susceptiblePct}%`;
+
+            document.getElementById('metric-immediate').textContent = metrics.immediate_education.toLocaleString();
+            document.getElementById('metric-reinforcement').textContent = metrics.smart_reinforcement.toLocaleString();
+
+            // Charts
+            renderCompletionChart(charts.completion_over_time);
+            renderSusceptibleChart(charts.susceptible_over_time);
+            renderStatusChart(charts.status_breakdown);
+            renderFunnelChart(charts.funnel, metrics.invited);
+
+            // Activity table
+            renderActivityTable(recent_activity);
+        }
+
+        function renderCompletionChart(data) {
+            const ctx = document.getElementById('completionChart').getContext('2d');
+
+            if (completionChart) completionChart.destroy();
+
+            const labels = data.map(d => formatDate(d.date));
+            const values = data.map(d => d.completed_count);
+
+            // Cumulative sum
+            let cumulative = 0;
+            const cumulativeValues = values.map(v => cumulative += parseInt(v));
+
+            completionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Completed',
+                        data: cumulativeValues,
+                        borderColor: '#27ae60',
+                        backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderSusceptibleChart(data) {
+            const ctx = document.getElementById('susceptibleChart').getContext('2d');
+
+            if (susceptibleChart) susceptibleChart.destroy();
+
+            const labels = data.map(d => formatDate(d.date));
+            const values = data.map(d => d.clicked_count);
+
+            let cumulative = 0;
+            const cumulativeValues = values.map(v => cumulative += parseInt(v));
+
+            susceptibleChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Clicked',
+                        data: cumulativeValues,
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function renderStatusChart(data) {
+            const ctx = document.getElementById('statusChart').getContext('2d');
+
+            if (statusChart) statusChart.destroy();
+
+            const labels = data.map(d => formatStatus(d.status));
+            const values = data.map(d => d.count);
+            const colors = data.map(d => getStatusColor(d.status));
+
+            statusChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: colors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right'
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderFunnelChart(funnel, maxValue) {
+            const container = document.getElementById('funnel-chart');
+
+            const colors = ['#3498db', '#9b59b6', '#f39c12', '#e74c3c', '#27ae60', '#1abc9c'];
+
+            container.innerHTML = funnel.map((item, idx) => {
+                const pct = maxValue > 0 ? (item.count / maxValue) * 100 : 0;
+                return `
+                    <div class="funnel-bar">
+                        <div class="funnel-label">${escapeHtml(item.stage)}</div>
+                        <div class="funnel-bar-container">
+                            <div class="funnel-bar-fill" style="width: ${pct}%; background: ${colors[idx % colors.length]};">
+                                ${item.count.toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderActivityTable(activity) {
+            const tbody = document.getElementById('activity-body');
+
+            if (!activity || activity.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #7f8c8d;">No activity yet</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = activity.map(item => {
+                const clicked = item.url_clicked_at ? 'Yes' : '-';
+                const completed = item.training_completed_at ? 'Yes' : '-';
+                const score = item.training_score !== null ? item.training_score : '-';
+
+                return `
+                    <tr>
+                        <td>${escapeHtml(item.recipient_email_address || item.recipient_id)}</td>
+                        <td><span class="status-pill ${getStatusPillClass(item.status)}">${formatStatus(item.status)}</span></td>
+                        <td>${clicked}</td>
+                        <td>${completed}</td>
+                        <td>${score}</td>
+                        <td>${formatDateTime(item.last_action_at)}</td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString();
+        }
+
+        function formatDateTime(dateStr) {
+            if (!dateStr) return 'N/A';
+            const date = new Date(dateStr);
+            return date.toLocaleString();
+        }
+
+        function formatStatus(status) {
+            if (!status) return 'Unknown';
+            return status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        }
+
+        function getStatusColor(status) {
+            const colors = {
+                'TRAINING_PENDING': '#f39c12',
+                'TRAINING_SENT': '#3498db',
+                'TRAINING_OPENED': '#9b59b6',
+                'TRAINING_CLICKED': '#e74c3c',
+                'TRAINING_COMPLETED': '#27ae60',
+                'TRAINING_REPORTED': '#1abc9c',
+                'FOLLOW_ON_SENT': '#2980b9',
+                'FOLLOW_ON_COMPLETED': '#16a085'
+            };
+            return colors[status] || '#95a5a6';
+        }
+
+        function getStatusPillClass(status) {
+            if (status && status.includes('CLICKED')) return 'clicked';
+            if (status && status.includes('COMPLETED')) return 'completed';
+            if (status && status.includes('SENT')) return 'sent';
+            return 'pending';
+        }
+
+        // Initialize
+        loadDashboard();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legacy Table Viewer - OCMS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #7f8c8d;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: #3498db;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-size: 12px;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        select, input[type="text"] {
+            padding: 10px 15px;
+            border: 1px solid #dfe6e9;
+            border-radius: 4px;
+            font-size: 14px;
+            min-width: 200px;
+        }
+
+        select:focus, input[type="text"]:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        button.secondary {
+            background: #6c757d;
+        }
+
+        button.secondary:hover {
+            background: #5a6268;
+        }
+
+        button.import {
+            background: #27ae60;
+        }
+
+        button.import:hover {
+            background: #219a52;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #e1e8ed;
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .import-status {
+            padding: 10px 15px;
+            border-radius: 4px;
+            margin-top: 15px;
+            display: none;
+        }
+
+        .import-status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+            display: block;
+        }
+
+        .import-status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+            display: block;
+        }
+
+        .import-status.loading {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+            display: block;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checkbox-group label {
+            font-size: 14px;
+            color: #2c3e50;
+            cursor: pointer;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .stat-card h3 {
+            color: #7f8c8d;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            color: #2c3e50;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+
+        thead {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        th {
+            background: #34495e;
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        th:hover {
+            background: #2c3e50;
+        }
+
+        th.sorted-asc::after {
+            content: ' \u25B2';
+            font-size: 10px;
+        }
+
+        th.sorted-desc::after {
+            content: ' \u25BC';
+            font-size: 10px;
+        }
+
+        td {
+            padding: 10px;
+            border-bottom: 1px solid #e1e8ed;
+            max-width: 500px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        td.expandable {
+            cursor: pointer;
+            color: #3498db;
+        }
+
+        td.expandable:hover {
+            text-decoration: underline;
+        }
+
+        .cell-boolean {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .cell-boolean.true {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .cell-boolean.false {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .cell-null {
+            color: #95a5a6;
+            font-style: italic;
+        }
+
+        .cell-date {
+            color: #7f8c8d;
+            font-size: 12px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: #f8f9fa;
+            border-top: 1px solid #e1e8ed;
+        }
+
+        .pagination-info {
+            color: #7f8c8d;
+            font-size: 14px;
+        }
+
+        .pagination-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #7f8c8d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        /* Modal for viewing full content */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 8px;
+            max-width: 900px;
+            width: 90%;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e1e8ed;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            color: #2c3e50;
+            font-size: 18px;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            color: #7f8c8d;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #2c3e50;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .modal-body pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .row-detail {
+            display: grid;
+            grid-template-columns: 150px 1fr;
+            gap: 10px 20px;
+        }
+
+        .row-detail dt {
+            font-weight: 500;
+            color: #7f8c8d;
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e8ed;
+        }
+
+        .row-detail dd {
+            padding: 8px 0;
+            border-bottom: 1px solid #e1e8ed;
+            word-break: break-word;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Batch import styles */
+        .batch-section {
+            margin-bottom: 25px;
+        }
+
+        .batch-section h3 {
+            color: #2c3e50;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .batch-progress-bar {
+            height: 20px;
+            background: #e1e8ed;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+
+        .batch-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60, #2ecc71);
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .batch-progress-fill.error {
+            background: linear-gradient(90deg, #e74c3c, #c0392b);
+        }
+
+        .batch-status {
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        .batch-summary {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e1e8ed;
+        }
+
+        .batch-summary h3 {
+            color: #2c3e50;
+            font-size: 16px;
+            margin-bottom: 15px;
+        }
+
+        .batch-summary-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .batch-summary-item:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            padding-top: 15px;
+        }
+
+        .batch-summary-item .label {
+            color: #7f8c8d;
+        }
+
+        .batch-summary-item .value {
+            color: #2c3e50;
+        }
+
+        .batch-summary-item .value.success {
+            color: #27ae60;
+        }
+
+        .batch-summary-item .value.skipped {
+            color: #f39c12;
+        }
+
+        .batch-summary-item .value.error {
+            color: #e74c3c;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <a href="index.html" class="back-link">&larr; Back to Testing Tool</a>
+            <h1>Legacy Table Viewer</h1>
+            <p class="subtitle">View data from legacy PM management tables</p>
+        </header>
+
+        <div class="controls">
+            <div class="control-row">
+                <div class="control-group">
+                    <label>Select Table</label>
+                    <select id="table-select" onchange="onTableChange()">
+                        <option value="">Loading tables...</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>Search</label>
+                    <input type="text" id="search-input" placeholder="Search..." onkeyup="debounceSearch(event)">
+                </div>
+
+                <div class="control-group">
+                    <label>Results per page</label>
+                    <select id="limit-select" onchange="loadTableData()">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100" selected>100</option>
+                        <option value="200">200</option>
+                    </select>
+                </div>
+
+                <div class="checkbox-group">
+                    <input type="checkbox" id="exclude-large" onchange="loadTableData()">
+                    <label for="exclude-large">Hide large text fields</label>
+                </div>
+
+                <button onclick="loadTableData()">Refresh</button>
+                <button class="secondary" onclick="exportCSV()">Export CSV</button>
+                <button class="secondary" onclick="exportSchema()">Export Schema</button>
+                <button class="import" onclick="importBatch50()">Import 50 of Each</button>
+                <label style="display: inline-flex; align-items: center; gap: 5px; margin-left: 10px; font-size: 13px; cursor: pointer;">
+                    <input type="checkbox" id="batch-auto-suggest-domain" checked>
+                    Auto-suggest domains
+                </label>
+            </div>
+        </div>
+
+        <div id="alert-container"></div>
+
+        <div class="stats" id="stats-container" style="display: none;">
+            <div class="stat-card">
+                <h3>Total Records</h3>
+                <div class="value" id="stat-total">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Showing</h3>
+                <div class="value" id="stat-showing">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Columns</h3>
+                <div class="value" id="stat-columns">-</div>
+            </div>
+        </div>
+
+        <div class="table-container" id="table-container">
+            <div class="empty-state">Select a table to view its data</div>
+        </div>
+
+        <!-- Row Detail Modal -->
+        <div class="modal" id="row-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Row Details</h2>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                </div>
+                <div class="modal-footer" id="modal-footer" style="display: none;">
+                    <div id="import-status" class="import-status"></div>
+                    <button class="import" id="import-btn" onclick="importToOCMS()">Import to OCMS</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Import Modal -->
+        <div class="modal" id="batch-modal">
+            <div class="modal-content" style="max-width: 700px;">
+                <div class="modal-header">
+                    <h2>Batch Import Progress</h2>
+                    <button class="modal-close" onclick="closeBatchModal()" id="batch-close-btn">&times;</button>
+                </div>
+                <div class="modal-body" id="batch-modal-body">
+                    <div id="batch-progress">
+                        <div class="batch-section">
+                            <h3>Education Templates</h3>
+                            <div class="batch-progress-bar">
+                                <div class="batch-progress-fill" id="education-progress" style="width: 0%"></div>
+                            </div>
+                            <div class="batch-status" id="education-status">Waiting...</div>
+                        </div>
+                        <div class="batch-section">
+                            <h3>Email Templates</h3>
+                            <div class="batch-progress-bar">
+                                <div class="batch-progress-fill" id="email-progress" style="width: 0%"></div>
+                            </div>
+                            <div class="batch-status" id="email-status">Waiting...</div>
+                        </div>
+                        <div class="batch-section">
+                            <h3>Landing Templates</h3>
+                            <div class="batch-progress-bar">
+                                <div class="batch-progress-fill" id="landing-progress" style="width: 0%"></div>
+                            </div>
+                            <div class="batch-status" id="landing-status">Waiting...</div>
+                        </div>
+                        <div class="batch-summary" id="batch-summary" style="display: none;">
+                            <h3>Import Summary</h3>
+                            <div id="batch-summary-content"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-detect base path
+        const currentPath = window.location.pathname;
+        let basePath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+        if (basePath.endsWith('/public')) {
+            basePath = basePath.substring(0, basePath.lastIndexOf('/'));
+        }
+        const API_BASE = basePath + '/api';
+
+        // API Configuration
+        const BEARER_TOKEN = '45780363-a30a-4009-b4bc-e897aaa1a4f1';
+
+        // State
+        let currentTable = null;
+        let currentData = null;
+        let currentOffset = 0;
+        let currentOrderBy = null;
+        let currentOrderDir = 'DESC';
+        let searchTimeout = null;
+        let currentRowIndex = null; // Track current row being viewed in modal
+
+        // Helper function to get headers with bearer token
+        function getAuthHeaders(additionalHeaders = {}) {
+            return {
+                'Authorization': 'Bearer ' + BEARER_TOKEN,
+                ...additionalHeaders
+            };
+        }
+
+        // HTML escape function
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Show alert message
+        function showAlert(type, message) {
+            const container = document.getElementById('alert-container');
+            container.innerHTML = `<div class="alert ${type}">${escapeHtml(message)}</div>`;
+            setTimeout(() => {
+                container.innerHTML = '';
+            }, 5000);
+        }
+
+        // Load available tables
+        async function loadTables() {
+            try {
+                const response = await fetch(API_BASE + '/legacy-tables.php', {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load tables');
+                }
+
+                const select = document.getElementById('table-select');
+                select.innerHTML = '<option value="">Select a table...</option>';
+
+                data.tables.forEach(table => {
+                    const option = document.createElement('option');
+                    option.value = table.key;
+                    option.textContent = `${table.key} - ${table.description}`;
+                    select.appendChild(option);
+                });
+
+            } catch (error) {
+                console.error('Error loading tables:', error);
+                showAlert('error', 'Failed to load tables: ' + error.message);
+            }
+        }
+
+        // Table selection changed
+        function onTableChange() {
+            const select = document.getElementById('table-select');
+            currentTable = select.value;
+            currentOffset = 0;
+            currentOrderBy = null;
+            currentOrderDir = 'DESC';
+            document.getElementById('search-input').value = '';
+
+            if (currentTable) {
+                loadTableData();
+            } else {
+                document.getElementById('table-container').innerHTML =
+                    '<div class="empty-state">Select a table to view its data</div>';
+                document.getElementById('stats-container').style.display = 'none';
+            }
+        }
+
+        // Debounce search input
+        function debounceSearch(event) {
+            clearTimeout(searchTimeout);
+            if (event.key === 'Enter') {
+                currentOffset = 0;
+                loadTableData();
+            } else {
+                searchTimeout = setTimeout(() => {
+                    currentOffset = 0;
+                    loadTableData();
+                }, 500);
+            }
+        }
+
+        // Load table data
+        async function loadTableData() {
+            if (!currentTable) return;
+
+            const container = document.getElementById('table-container');
+            container.innerHTML = '<div class="loading">Loading data...</div>';
+
+            const limit = document.getElementById('limit-select').value;
+            const search = document.getElementById('search-input').value;
+            const excludeLarge = document.getElementById('exclude-large').checked;
+
+            let url = `${API_BASE}/legacy-tables.php?table=${currentTable}&limit=${limit}&offset=${currentOffset}&exclude_large=${excludeLarge}`;
+
+            if (search) {
+                url += `&search=${encodeURIComponent(search)}`;
+            }
+            if (currentOrderBy) {
+                url += `&order_by=${currentOrderBy}&order_dir=${currentOrderDir}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    headers: getAuthHeaders()
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load data');
+                }
+
+                currentData = data;
+                renderTable(data);
+                updateStats(data);
+
+            } catch (error) {
+                console.error('Error loading data:', error);
+                container.innerHTML = `<div class="empty-state">Error: ${escapeHtml(error.message)}</div>`;
+            }
+        }
+
+        // Update statistics
+        function updateStats(data) {
+            document.getElementById('stats-container').style.display = 'grid';
+            document.getElementById('stat-total').textContent = data.total.toLocaleString();
+            document.getElementById('stat-showing').textContent = data.rows.length.toLocaleString();
+            document.getElementById('stat-columns').textContent = data.columns.length;
+        }
+
+        // Format cell value
+        function formatCell(value, column) {
+            if (value === null || value === undefined) {
+                return '<span class="cell-null">null</span>';
+            }
+
+            if (typeof value === 'boolean') {
+                return `<span class="cell-boolean ${value}">${value ? 'Yes' : 'No'}</span>`;
+            }
+
+            // Handle date columns
+            if (column.includes('_at') || column.includes('_on')) {
+                if (value) {
+                    const date = new Date(value);
+                    if (!isNaN(date)) {
+                        return `<span class="cell-date">${date.toLocaleString()}</span>`;
+                    }
+                }
+            }
+
+            const strValue = String(value);
+
+            // Truncate long values
+            if (strValue.length > 100) {
+                return `<span class="expandable" title="Click to view full content">${escapeHtml(strValue.substring(0, 100))}...</span>`;
+            }
+
+            return escapeHtml(strValue);
+        }
+
+        // Render table
+        function renderTable(data) {
+            const container = document.getElementById('table-container');
+
+            if (data.rows.length === 0) {
+                container.innerHTML = '<div class="empty-state">No records found</div>';
+                return;
+            }
+
+            let html = '<div class="table-wrapper"><table>';
+
+            // Header
+            html += '<thead><tr>';
+            html += '<th>#</th>';
+            data.columns.forEach(col => {
+                let sortClass = '';
+                if (currentOrderBy === col) {
+                    sortClass = currentOrderDir === 'ASC' ? 'sorted-asc' : 'sorted-desc';
+                }
+                html += `<th class="${sortClass}" onclick="sortBy('${col}')">${escapeHtml(col)}</th>`;
+            });
+            html += '</tr></thead>';
+
+            // Body
+            html += '<tbody>';
+            data.rows.forEach((row, index) => {
+                const rowNum = data.offset + index + 1;
+                html += `<tr onclick="showRowDetail(${index})" style="cursor: pointer;">`;
+                html += `<td>${rowNum}</td>`;
+                data.columns.forEach(col => {
+                    html += `<td>${formatCell(row[col], col)}</td>`;
+                });
+                html += '</tr>';
+            });
+            html += '</tbody></table></div>';
+
+            // Pagination
+            const totalPages = Math.ceil(data.total / data.limit);
+            const currentPage = Math.floor(data.offset / data.limit) + 1;
+
+            html += '<div class="pagination">';
+            html += `<span class="pagination-info">Page ${currentPage} of ${totalPages} (${data.total.toLocaleString()} total records)</span>`;
+            html += '<div class="pagination-buttons">';
+            html += `<button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>First</button>`;
+            html += `<button onclick="prevPage()" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>`;
+            html += `<button onclick="nextPage()" ${currentPage >= totalPages ? 'disabled' : ''}>Next</button>`;
+            html += `<button onclick="goToPage(${totalPages})" ${currentPage >= totalPages ? 'disabled' : ''}>Last</button>`;
+            html += '</div></div>';
+
+            container.innerHTML = html;
+        }
+
+        // Sort by column
+        function sortBy(column) {
+            if (currentOrderBy === column) {
+                currentOrderDir = currentOrderDir === 'ASC' ? 'DESC' : 'ASC';
+            } else {
+                currentOrderBy = column;
+                currentOrderDir = 'ASC';
+            }
+            loadTableData();
+        }
+
+        // Pagination functions
+        function nextPage() {
+            if (currentData && currentOffset + currentData.limit < currentData.total) {
+                currentOffset += currentData.limit;
+                loadTableData();
+            }
+        }
+
+        function prevPage() {
+            if (currentOffset > 0) {
+                currentOffset = Math.max(0, currentOffset - currentData.limit);
+                loadTableData();
+            }
+        }
+
+        function goToPage(page) {
+            if (currentData) {
+                currentOffset = (page - 1) * currentData.limit;
+                loadTableData();
+            }
+        }
+
+        // Show row detail modal
+        function showRowDetail(index) {
+            if (!currentData || !currentData.rows[index]) return;
+
+            currentRowIndex = index; // Track current row
+            const row = currentData.rows[index];
+            const modal = document.getElementById('row-modal');
+            const body = document.getElementById('modal-body');
+            const footer = document.getElementById('modal-footer');
+            const importStatus = document.getElementById('import-status');
+
+            let html = '<dl class="row-detail">';
+            currentData.columns.forEach(col => {
+                let value = row[col];
+                let displayValue;
+
+                if (value === null || value === undefined) {
+                    displayValue = '<span class="cell-null">null</span>';
+                } else if (typeof value === 'boolean') {
+                    displayValue = `<span class="cell-boolean ${value}">${value ? 'Yes' : 'No'}</span>`;
+                } else if (col.includes('html') || col.includes('body')) {
+                    // Show HTML content in pre block
+                    displayValue = `<pre>${escapeHtml(String(value))}</pre>`;
+                } else {
+                    displayValue = escapeHtml(String(value));
+                }
+
+                html += `<dt>${escapeHtml(col)}</dt><dd>${displayValue}</dd>`;
+            });
+            html += '</dl>';
+
+            body.innerHTML = html;
+
+            // Show import button for pm_education_template and pm_email_template
+            if (currentTable === 'pm_education_template' || currentTable === 'pm_email_template' || currentTable === 'pm_landing_template') {
+                footer.style.display = 'flex';
+                importStatus.className = 'import-status';
+                importStatus.textContent = '';
+                document.getElementById('import-btn').disabled = false;
+            } else {
+                footer.style.display = 'none';
+            }
+
+            modal.classList.add('show');
+        }
+
+        // Close modal
+        function closeModal() {
+            document.getElementById('row-modal').classList.remove('show');
+        }
+
+        // Close modal on outside click
+        document.getElementById('row-modal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeModal();
+            }
+        });
+
+        // Close modal on Escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Export to CSV
+        function exportCSV() {
+            if (!currentData || !currentData.rows.length) {
+                showAlert('error', 'No data to export');
+                return;
+            }
+
+            let csv = currentData.columns.map(col => `"${col}"`).join(',') + '\n';
+
+            currentData.rows.forEach(row => {
+                const values = currentData.columns.map(col => {
+                    let value = row[col];
+                    if (value === null || value === undefined) return '';
+                    value = String(value).replace(/"/g, '""');
+                    return `"${value}"`;
+                });
+                csv += values.join(',') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${currentTable}_export_${new Date().toISOString().slice(0,10)}.csv`;
+            link.click();
+        }
+
+        // Export database schema
+        async function exportSchema() {
+            showAlert('info', 'Exporting database schema...');
+
+            try {
+                // Fetch schema as JSON first to show info
+                const response = await fetch(API_BASE + '/export-schema.php', {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch schema');
+                }
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to export schema');
+                }
+
+                // Generate SQL format
+                const sql = generateSQLFromSchema(data);
+
+                // Download as SQL file
+                const blob = new Blob([sql], { type: 'text/plain;charset=utf-8;' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = `schema_export_${new Date().toISOString().slice(0,10)}.sql`;
+                link.click();
+
+                showAlert('info', `Schema exported: ${data.table_count} tables (${data.database_type})`);
+
+            } catch (error) {
+                console.error('Schema export error:', error);
+                showAlert('error', 'Failed to export schema: ' + error.message);
+            }
+        }
+
+        // Generate SQL from schema JSON
+        function generateSQLFromSchema(data) {
+            let sql = `-- Database Schema Export\n`;
+            sql += `-- Generated: ${data.exported_at}\n`;
+            sql += `-- Database Type: ${data.database_type.toUpperCase()}\n`;
+            sql += `-- Tables: ${data.table_count}\n\n`;
+
+            for (const [tableName, tableInfo] of Object.entries(data.schema)) {
+                sql += `-- Table: ${tableName}\n`;
+                sql += `CREATE TABLE ${tableName} (\n`;
+
+                const columnDefs = [];
+
+                // Columns
+                tableInfo.columns.forEach(col => {
+                    let def = `    ${col.column_name} `;
+
+                    // Data type
+                    if (col.column_type) {
+                        def += col.column_type;
+                    } else {
+                        def += col.data_type;
+                        if (col.character_maximum_length) {
+                            def += `(${col.character_maximum_length})`;
+                        } else if (col.numeric_precision) {
+                            def += `(${col.numeric_precision}`;
+                            if (col.numeric_scale) {
+                                def += `,${col.numeric_scale}`;
+                            }
+                            def += `)`;
+                        }
+                    }
+
+                    // NOT NULL
+                    if (col.is_nullable === 'NO') {
+                        def += ' NOT NULL';
+                    }
+
+                    // Default value
+                    if (col.column_default !== null && !String(col.column_default).includes('nextval')) {
+                        def += ` DEFAULT ${col.column_default}`;
+                    }
+
+                    // PRIMARY KEY (single column)
+                    if (tableInfo.primary_key.length === 1 && tableInfo.primary_key[0] === col.column_name) {
+                        def += ' PRIMARY KEY';
+                    }
+
+                    columnDefs.push(def);
+                });
+
+                // Composite primary key
+                if (tableInfo.primary_key.length > 1) {
+                    columnDefs.push(`    PRIMARY KEY (${tableInfo.primary_key.join(', ')})`);
+                }
+
+                // Foreign keys
+                tableInfo.foreign_keys.forEach(fk => {
+                    columnDefs.push(`    FOREIGN KEY (${fk.column_name}) REFERENCES ${fk.foreign_table_name}(${fk.foreign_column_name})`);
+                });
+
+                sql += columnDefs.join(',\n');
+                sql += `\n);\n\n`;
+
+                // Indexes (deduplicate by index name)
+                const seenIndexes = new Set();
+                tableInfo.indexes.forEach(idx => {
+                    if (!seenIndexes.has(idx.index_name)) {
+                        seenIndexes.add(idx.index_name);
+                        const unique = (idx.is_unique || idx.non_unique === 0) ? 'UNIQUE ' : '';
+                        sql += `CREATE ${unique}INDEX ${idx.index_name} ON ${tableName} (${idx.column_name});\n`;
+                    }
+                });
+
+                sql += '\n';
+            }
+
+            return sql;
+        }
+
+        // Replace all user-clickable links (a href) with {{{trainingURL}}} placeholder
+        function replaceLinksWithPlaceholder(html) {
+            // Use a regex to replace href attribute values in anchor tags
+            // Skip hrefs that already contain template placeholders {{{ or }}}
+            return html.replace(/<a\s+([^>]*?)href\s*=\s*["']([^"']+)["']([^>]*)>/gi,
+                function(match, before, hrefValue, after) {
+                    // Skip if href already contains template placeholders
+                    if (hrefValue.includes('{{{') || hrefValue.includes('}}}')) {
+                        return match; // Return original, unchanged
+                    }
+                    return '<a ' + before + 'href="{{{trainingURL}}}"' + after + '>';
+                });
+        }
+
+        // Extract phishing domain tag from placeholder in from_address
+        // Matches: {{{ PhishingDomain.domain_for_template('tag') }}}
+        function extractPhishingDomainTag(fromAddress) {
+            if (!fromAddress) return null;
+
+            // Match pattern like {{{ PhishingDomain.domain_for_template('tag') }}}
+            const match = fromAddress.match(/\{\{\{\s*PhishingDomain\.domain_for_template\(['"]([^'"]+)['"]\)\s*\}\}\}/);
+            return match ? match[1] : null;
+        }
+
+        // Look up domain from pm_phishing_domain table by tag
+        async function lookupPhishingDomain(tag) {
+            if (!tag) return null;
+
+            try {
+                const response = await fetch(`${API_BASE}/legacy-tables.php?table=pm_phishing_domain&search=${encodeURIComponent(tag)}`, {
+                    headers: getAuthHeaders()
+                });
+
+                if (!response.ok) {
+                    console.error('Failed to fetch phishing domain:', response.status);
+                    return null;
+                }
+
+                const data = await response.json();
+
+                if (!data.success || !data.rows || data.rows.length === 0) {
+                    console.warn(`No phishing domain found for tag: ${tag}`);
+                    return null;
+                }
+
+                // Find exact match for tag
+                const domainRow = data.rows.find(row => row.tag === tag);
+                if (domainRow && domainRow.domain) {
+                    return domainRow.domain;
+                }
+
+                console.warn(`No exact tag match found for: ${tag}`);
+                return null;
+            } catch (error) {
+                console.error('Error looking up phishing domain:', error);
+                return null;
+            }
+        }
+
+        // Replace phishing domain placeholder with actual domain
+        function replacePhishingDomainPlaceholder(fromAddress, domain) {
+            if (!fromAddress || !domain) return fromAddress;
+
+            // Replace the entire placeholder with the domain
+            return fromAddress.replace(/\{\{\{\s*PhishingDomain\.domain_for_template\(['"][^'"]+['"]\)\s*\}\}\}/g, domain);
+        }
+
+        // Import template to OCMS (handles both education and email templates)
+        async function importToOCMS() {
+            if (currentRowIndex === null || !currentData || !currentData.rows[currentRowIndex]) {
+                showImportStatus('error', 'No row selected for import');
+                return;
+            }
+
+            let row = currentData.rows[currentRowIndex];
+            const importBtn = document.getElementById('import-btn');
+
+            importBtn.disabled = true;
+            showImportStatus('loading', 'Preparing import...');
+
+            try {
+                // Determine which type of import based on table
+                const isEmailImport = currentTable === 'pm_email_template';
+                const contentField = isEmailImport ? 'body' : 'html';
+
+                // If content field is not in the current data (because "hide large fields" was checked),
+                // we need to fetch the full row data
+                if (!row.hasOwnProperty(contentField) || row[contentField] === undefined) {
+                    showImportStatus('loading', 'Fetching full content data...');
+
+                    // Fetch the specific row with all fields
+                    // Use template_name to search for this specific row
+                    const templateName = row.template_name;
+                    if (!templateName) {
+                        showImportStatus('error', 'Cannot identify row - template_name is missing');
+                        importBtn.disabled = false;
+                        return;
+                    }
+
+                    const searchUrl = `${API_BASE}/legacy-tables.php?table=${currentTable}&search=${encodeURIComponent(templateName)}&limit=10&exclude_large=false`;
+                    const searchResponse = await fetch(searchUrl, {
+                        headers: getAuthHeaders()
+                    });
+                    const searchResult = await searchResponse.json();
+
+                    if (!searchResult.success || !searchResult.rows || searchResult.rows.length === 0) {
+                        showImportStatus('error', 'Could not fetch full content data');
+                        importBtn.disabled = false;
+                        return;
+                    }
+
+                    // Find the exact matching row
+                    const fullRow = searchResult.rows.find(r => r.template_name === templateName);
+                    if (!fullRow) {
+                        showImportStatus('error', 'Could not find matching template');
+                        importBtn.disabled = false;
+                        return;
+                    }
+
+                    row = fullRow;
+                }
+
+                // Handle import based on type
+		if (isEmailImport) {
+        	    await importEmailTemplate(row, importBtn);
+        	} else if (currentTable === 'pm_landing_template') {
+        	    await importLandingTemplate(row, importBtn);
+        	} else {
+        	    await importEducationTemplate(row, importBtn);
+        	}
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showImportStatus('error', 'Import failed: ' + escapeHtml(error.message));
+                importBtn.disabled = false;
+            }
+        }
+
+        // Import education template
+        async function importEducationTemplate(row, importBtn, autoSuggestDomain = false) {
+            // Get required fields
+            const htmlContent = row.html;
+            const title = row.template_name || 'Imported Education Template';
+            const description = row.description || '';
+            const legacyId = row.id || null;
+	    let thumbnailUrl = row.content_preview_image || row.content_preview_thumbnail || row.smallimage || null;
+
+// Fix: Prepend base URL if we have a filename but not a full URL
+if (thumbnailUrl && !thumbnailUrl.startsWith('http')) {
+    thumbnailUrl = 'https://login.phishme.com/images/education_templates/' + thumbnailUrl;
+}
+            // Validate HTML content exists
+            if (!htmlContent) {
+                showImportStatus('error', 'This template has no HTML content to import');
+                importBtn.disabled = false;
+                return;
+            }
+
+            showImportStatus('loading', 'Importing education content to OCMS...');
+
+            // Build form data for upload API
+            const formData = new FormData();
+            formData.append('content_type', 'training');
+            formData.append('title', title);
+            formData.append('description', description);
+            formData.append('html_content', htmlContent);
+
+            // Use legacy ID if available
+            if (legacyId) {
+                formData.append('legacy_id', legacyId);
+            }
+
+            // Add thumbnail URL if available
+            if (thumbnailUrl) {
+                formData.append('thumbnail_url', thumbnailUrl);
+            }
+
+            // Add auto-suggest domain flag
+            if (autoSuggestDomain) {
+                formData.append('auto_suggest_domain', 'true');
+            }
+
+            const response = await fetch(API_BASE + '/upload.php', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                let message = `Content imported successfully! ID: ${escapeHtml(result.content_id)}`;
+                if (result.tags && result.tags.length > 0) {
+                    message += ` | Tags: ${result.tags.map(t => escapeHtml(t)).join(', ')}`;
+                }
+                if (result.domain) {
+                    message += ` | Domain: ${escapeHtml(result.domain)}`;
+                    if (result.domain_suggested) {
+                        message += ' (AI suggested)';
+                    }
+                }
+                if (result.preview_url) {
+                    message += ` | <a href="${escapeHtml(result.preview_url)}" target="_blank" style="color: inherit; text-decoration: underline;">Preview</a>`;
+                }
+                showImportStatus('success', message);
+            } else {
+                showImportStatus('error', 'Import failed: ' + escapeHtml(result.error || 'Unknown error'));
+                importBtn.disabled = false;
+            }
+        }
+
+        // Import email template
+        async function importEmailTemplate(row, importBtn, autoSuggestDomain = false) {
+            // Get required fields
+            let emailBody = row.body;
+            const title = row.template_name || 'Imported Email Template';
+            const emailSubject = row.subject || '';
+            let emailFrom = row.from_address || '';
+            const fromName = row.from_name || '';
+            const legacyId = row.id || null;
+            let domain = null;
+
+            // Validate email body exists
+            if (!emailBody) {
+                showImportStatus('error', 'This email template has no body content to import');
+                importBtn.disabled = false;
+                return;
+            }
+
+            // Check for phishing domain placeholder in from_address
+            const domainTag = extractPhishingDomainTag(emailFrom);
+            if (domainTag) {
+                showImportStatus('loading', `Looking up phishing domain for tag: ${domainTag}...`);
+                domain = await lookupPhishingDomain(domainTag);
+
+                if (domain) {
+                    // Replace the placeholder with the actual domain
+                    emailFrom = replacePhishingDomainPlaceholder(emailFrom, domain);
+                    showImportStatus('loading', `Found domain: ${domain}. Processing email...`);
+                } else {
+                    showImportStatus('error', `Could not find phishing domain for tag: ${domainTag}`);
+                    importBtn.disabled = false;
+                    return;
+                }
+            }
+
+            showImportStatus('loading', 'Processing email links...');
+
+            // Replace all user-clickable links with {{{trainingURL}}} placeholder
+            emailBody = replaceLinksWithPlaceholder(emailBody);
+
+            showImportStatus('loading', 'Importing email template to OCMS...');
+
+            // Build form data for upload API
+            const formData = new FormData();
+            formData.append('content_type', 'email');
+            formData.append('title', title);
+            formData.append('email_subject', emailSubject);
+            formData.append('email_from', emailFrom);
+            formData.append('email_html', emailBody);
+
+            // Use legacy ID if available
+            if (legacyId) {
+                formData.append('legacy_id', legacyId);
+            }
+
+            // Add domain if it was resolved from placeholder
+            if (domain) {
+                formData.append('domain', domain);
+            }
+
+            // Add from_name as a direct parameter (not in description)
+            if (fromName) {
+                formData.append('from_name', fromName);
+            }
+
+            // Add auto-suggest domain flag (only if no domain was resolved from placeholder)
+            if (autoSuggestDomain && !domain) {
+                formData.append('auto_suggest_domain', 'true');
+            }
+
+            const response = await fetch(API_BASE + '/upload.php', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: formData
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                let message = `Email template imported successfully! ID: ${escapeHtml(result.content_id)}`;
+                if (result.domain) {
+                    message += ` | Domain: ${escapeHtml(result.domain)}`;
+                    if (result.domain_suggested) {
+                        message += ' (AI suggested)';
+                    }
+                }
+                if (result.cues && result.cues.length > 0) {
+                    message += ` | Phishing Cues: ${result.cues.length}`;
+                }
+                if (result.difficulty) {
+                    message += ` | Difficulty: ${escapeHtml(result.difficulty)}`;
+                }
+                if (result.preview_url) {
+                    message += ` | <a href="${escapeHtml(result.preview_url)}" target="_blank" style="color: inherit; text-decoration: underline;">Preview</a>`;
+                }
+                showImportStatus('success', message);
+            } else {
+                showImportStatus('error', 'Import failed: ' + escapeHtml(result.error || 'Unknown error'));
+                importBtn.disabled = false;
+            }
+        }
+
+        // Show import status message
+        function showImportStatus(type, message) {
+            const statusDiv = document.getElementById('import-status');
+            statusDiv.className = 'import-status ' + type;
+            statusDiv.innerHTML = message;
+        }
+
+
+
+// Import landing page template
+async function importLandingTemplate(row, importBtn, autoSuggestDomain = false) {
+    // Get required fields
+    const htmlContent = row.html;
+    const title = row.template_name || 'Imported Landing Page';
+    const description = row.description || '';
+    const legacyId = row.id || null;
+    // Map 'smallimage' from legacy schema to thumbnail
+    const thumbnailUrl = row.smallimage || null;
+
+    // Validate HTML content exists
+    if (!htmlContent) {
+        showImportStatus('error', 'This template has no HTML content to import');
+        importBtn.disabled = false;
+        return;
+    }
+
+    showImportStatus('loading', 'Importing landing page to OCMS...');
+
+    // Build form data for upload API
+    const formData = new FormData();
+    formData.append('content_type', 'landing');
+    formData.append('title', title);
+    formData.append('description', description);
+    formData.append('html_content', htmlContent);
+
+    // Use legacy ID if available
+    if (legacyId) {
+        formData.append('legacy_id', legacyId);
+    }
+
+    // Add thumbnail URL if available
+    if (thumbnailUrl) {
+        formData.append('thumbnail_url', thumbnailUrl);
+    }
+
+    // Add auto-suggest domain flag
+    if (autoSuggestDomain) {
+        formData.append('auto_suggest_domain', 'true');
+    }
+
+    const response = await fetch(API_BASE + '/upload.php', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: formData
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+        let message = `Landing page imported successfully! ID: ${escapeHtml(result.content_id)}`;
+
+        // Add domain info if suggested
+        if (result.domain) {
+            message += ` | Domain: ${escapeHtml(result.domain)}`;
+            if (result.domain_suggested) {
+                message += ' (AI suggested)';
+            }
+        }
+
+        // Add specific feedback for landing pages
+        if (result.preview_url) {
+            message += ` | <a href="${escapeHtml(result.preview_url)}" target="_blank" style="color: inherit; text-decoration: underline;">Preview</a>`;
+        }
+        showImportStatus('success', message);
+    } else {
+        showImportStatus('error', 'Import failed: ' + escapeHtml(result.error || 'Unknown error'));
+        importBtn.disabled = false;
+    }
+}
+
+
+        // Batch import state
+        let batchImportRunning = false;
+
+        // Open batch import modal
+        function openBatchModal() {
+            document.getElementById('batch-modal').classList.add('show');
+            // Reset progress
+            ['education', 'email', 'landing'].forEach(type => {
+                document.getElementById(`${type}-progress`).style.width = '0%';
+                document.getElementById(`${type}-progress`).classList.remove('error');
+                document.getElementById(`${type}-status`).textContent = 'Waiting...';
+            });
+            document.getElementById('batch-summary').style.display = 'none';
+        }
+
+        // Close batch import modal
+        function closeBatchModal() {
+            if (batchImportRunning) {
+                if (!confirm('Import is in progress. Are you sure you want to close?')) {
+                    return;
+                }
+            }
+            document.getElementById('batch-modal').classList.remove('show');
+        }
+
+        // Update batch progress
+        function updateBatchProgress(type, percent, status, isError = false) {
+            const progressBar = document.getElementById(`${type}-progress`);
+            const statusDiv = document.getElementById(`${type}-status`);
+            progressBar.style.width = `${percent}%`;
+            if (isError) {
+                progressBar.classList.add('error');
+            }
+            statusDiv.textContent = status;
+        }
+
+        // Check which IDs already exist in OCMS
+        async function checkExistingIds(ids) {
+            if (!ids || ids.length === 0) {
+                return { existing: [], missing: [] };
+            }
+
+            try {
+                const response = await fetch(API_BASE + '/check-content.php', {
+                    method: 'POST',
+                    headers: {
+                        ...getAuthHeaders(),
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ ids: ids })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    return { existing: result.existing, missing: result.missing };
+                }
+                console.error('Check content error:', result.error);
+                return { existing: [], missing: ids };
+            } catch (error) {
+                console.error('Check content fetch error:', error);
+                return { existing: [], missing: ids };
+            }
+        }
+
+        // Fetch rows from a legacy table with pagination
+        async function fetchLegacyRows(tableName, limit = 50, offset = 0) {
+            const url = `${API_BASE}/legacy-tables.php?table=${tableName}&limit=${limit}&offset=${offset}&exclude_large=false&active_only=true`;
+            const response = await fetch(url, { headers: getAuthHeaders() });
+            const data = await response.json();
+            if (!data.success) {
+                throw new Error(data.error || `Failed to fetch ${tableName}`);
+            }
+            return { rows: data.rows || [], total: data.total || 0 };
+        }
+
+        // Import a single row (wrapper that returns result object)
+        async function importSingleRow(row, type, autoSuggestDomain = false) {
+            const fakeBtn = { disabled: false };
+            let success = false;
+            let error = null;
+
+            // Temporarily override showImportStatus to capture result
+            const originalShowImportStatus = showImportStatus;
+            showImportStatus = (statusType, message) => {
+                if (statusType === 'success') {
+                    success = true;
+                } else if (statusType === 'error') {
+                    error = message;
+                }
+            };
+
+            try {
+                if (type === 'education') {
+                    await importEducationTemplate(row, fakeBtn, autoSuggestDomain);
+                } else if (type === 'email') {
+                    await importEmailTemplate(row, fakeBtn, autoSuggestDomain);
+                } else if (type === 'landing') {
+                    await importLandingTemplate(row, fakeBtn, autoSuggestDomain);
+                }
+            } catch (e) {
+                error = e.message;
+            }
+
+            // Restore original function
+            showImportStatus = originalShowImportStatus;
+
+            return { success, error };
+        }
+
+        // Batch import 50 of each type
+        async function importBatch50() {
+            if (batchImportRunning) {
+                showAlert('error', 'Batch import is already running');
+                return;
+            }
+
+            batchImportRunning = true;
+            openBatchModal();
+
+            // Check if auto-suggest domain is enabled
+            const autoSuggestDomain = document.getElementById('batch-auto-suggest-domain')?.checked ?? false;
+
+            const results = {
+                education: { total: 0, imported: 0, skipped: 0, errors: 0 },
+                email: { total: 0, imported: 0, skipped: 0, errors: 0 },
+                landing: { total: 0, imported: 0, skipped: 0, errors: 0 }
+            };
+
+            try {
+                // Import education templates
+                await importBatchType('pm_education_template', 'education', 'training', results.education, autoSuggestDomain);
+
+                // Import email templates
+                await importBatchType('pm_email_template', 'email', 'email', results.email, autoSuggestDomain);
+
+                // Import landing templates
+                await importBatchType('pm_landing_template', 'landing', 'landing', results.landing, autoSuggestDomain);
+
+                // Show summary
+                showBatchSummary(results);
+
+            } catch (error) {
+                console.error('Batch import error:', error);
+                showAlert('error', 'Batch import failed: ' + error.message);
+            }
+
+            batchImportRunning = false;
+        }
+
+        // Import batch for a specific type - continues fetching until 50 new items imported or no more available
+        async function importBatchType(tableName, progressType, importType, resultTracker, autoSuggestDomain = false) {
+            const TARGET_IMPORTS = 50;
+            const BATCH_SIZE = 50;
+            let offset = 0;
+            let totalAvailable = 0;
+
+            updateBatchProgress(progressType, 0, 'Fetching records...');
+
+            try {
+                // Loop until we've imported 50 items or run out of source items
+                while (resultTracker.imported < TARGET_IMPORTS) {
+                    // Fetch next batch of rows
+                    const { rows, total } = await fetchLegacyRows(tableName, BATCH_SIZE, offset);
+                    totalAvailable = total;
+
+                    if (rows.length === 0) {
+                        // No more rows available
+                        if (offset === 0) {
+                            updateBatchProgress(progressType, 100, 'No records found');
+                            return;
+                        }
+                        break;
+                    }
+
+                    // Extract IDs from rows
+                    const ids = rows.map(row => row.id).filter(id => id);
+
+                    if (ids.length === 0) {
+                        offset += BATCH_SIZE;
+                        continue;
+                    }
+
+                    updateBatchProgress(progressType, 5, `Checking batch at offset ${offset}...`);
+
+                    // Check which IDs already exist
+                    const { existing, missing } = await checkExistingIds(ids);
+                    resultTracker.skipped += existing.length;
+                    resultTracker.total += rows.length;
+
+                    // Filter rows to only import missing ones
+                    const rowsToImport = rows.filter(row => missing.includes(row.id));
+
+                    // Import each row in this batch
+                    for (let i = 0; i < rowsToImport.length && resultTracker.imported < TARGET_IMPORTS; i++) {
+                        const row = rowsToImport[i];
+                        const progress = 10 + Math.round((resultTracker.imported / TARGET_IMPORTS) * 85);
+
+                        updateBatchProgress(progressType, progress, `Importing ${resultTracker.imported + 1}/${TARGET_IMPORTS}: ${row.template_name || row.id}`);
+
+                        const result = await importSingleRow(row, progressType, autoSuggestDomain);
+
+                        if (result.success) {
+                            resultTracker.imported++;
+                        } else {
+                            resultTracker.errors++;
+                            console.warn(`Failed to import ${row.id}:`, result.error);
+                        }
+
+                        // Small delay to prevent overwhelming the server
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+
+                    // Move to next batch
+                    offset += BATCH_SIZE;
+
+                    // Check if we've exhausted all available records
+                    if (offset >= totalAvailable) {
+                        break;
+                    }
+                }
+
+                const status = `Complete: ${resultTracker.imported} imported, ${resultTracker.skipped} skipped, ${resultTracker.errors} errors`;
+                updateBatchProgress(progressType, 100, status, resultTracker.errors > 0);
+
+            } catch (error) {
+                updateBatchProgress(progressType, 100, `Error: ${error.message}`, true);
+                throw error;
+            }
+        }
+
+        // Show batch import summary
+        function showBatchSummary(results) {
+            const summaryDiv = document.getElementById('batch-summary');
+            const contentDiv = document.getElementById('batch-summary-content');
+
+            const totalImported = results.education.imported + results.email.imported + results.landing.imported;
+            const totalSkipped = results.education.skipped + results.email.skipped + results.landing.skipped;
+            const totalErrors = results.education.errors + results.email.errors + results.landing.errors;
+            const totalProcessed = results.education.total + results.email.total + results.landing.total;
+
+            contentDiv.innerHTML = `
+                <div class="batch-summary-item">
+                    <span class="label">Education Templates</span>
+                    <span class="value">${results.education.imported} imported, ${results.education.skipped} skipped, ${results.education.errors} errors</span>
+                </div>
+                <div class="batch-summary-item">
+                    <span class="label">Email Templates</span>
+                    <span class="value">${results.email.imported} imported, ${results.email.skipped} skipped, ${results.email.errors} errors</span>
+                </div>
+                <div class="batch-summary-item">
+                    <span class="label">Landing Templates</span>
+                    <span class="value">${results.landing.imported} imported, ${results.landing.skipped} skipped, ${results.landing.errors} errors</span>
+                </div>
+                <div class="batch-summary-item">
+                    <span class="label">Total</span>
+                    <span class="value">
+                        <span class="success">${totalImported} imported</span>,
+                        <span class="skipped">${totalSkipped} skipped</span>,
+                        <span class="error">${totalErrors} errors</span>
+                        (${totalProcessed} processed)
+                    </span>
+                </div>
+            `;
+
+            summaryDiv.style.display = 'block';
+        }
+
+        // Initialize
+        loadTables();
+    </script>
+</body>
+</html>
