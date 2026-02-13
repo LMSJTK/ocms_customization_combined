@@ -105,6 +105,69 @@ CREATE TABLE IF NOT EXISTS global.sns_message_queue
 CREATE INDEX idx_sns_queue_tracking_link_id ON global.sns_message_queue(tracking_link_id);
 CREATE INDEX idx_sns_queue_sent ON global.sns_message_queue(sent);
 
+-- =========================================================================
+-- Customization Tables
+-- =========================================================================
+
+-- Brand kits - stores per-company brand assets (logo, fonts, colors)
+CREATE TABLE IF NOT EXISTS global.brand_kits
+(
+    id text PRIMARY KEY,
+    company_id text NOT NULL,
+    name text NOT NULL DEFAULT 'Default',
+    logo_url text,             -- S3 URL for uploaded logo
+    logo_filename text,        -- Original filename for display
+    primary_color text,        -- Hex color, e.g. '#4F46E5'
+    secondary_color text,
+    accent_color text,
+    saved_colors jsonb DEFAULT '[]'::jsonb,  -- Array of additional hex colors
+    primary_font text,         -- Font family name, e.g. 'Inter'
+    secondary_font text,
+    custom_font_urls jsonb DEFAULT '[]'::jsonb, -- Array of S3 URLs for uploaded font files
+    is_default boolean DEFAULT false,
+    created_at timestamp DEFAULT now(),
+    updated_at timestamp DEFAULT now(),
+    UNIQUE(company_id, name)
+);
+
+CREATE INDEX idx_brand_kits_company_id ON global.brand_kits(company_id);
+
+-- Brand kit assets - stores uploaded files (logos, fonts) metadata
+CREATE TABLE IF NOT EXISTS global.brand_kit_assets
+(
+    id text PRIMARY KEY,
+    brand_kit_id text NOT NULL REFERENCES global.brand_kits(id) ON DELETE CASCADE,
+    asset_type text NOT NULL,  -- 'logo', 'font', 'icon'
+    filename text NOT NULL,
+    s3_url text NOT NULL,
+    mime_type text,
+    file_size integer,
+    created_at timestamp DEFAULT now()
+);
+
+CREATE INDEX idx_brand_kit_assets_brand_kit_id ON global.brand_kit_assets(brand_kit_id);
+
+-- Content customizations - stores customized versions of base content templates
+CREATE TABLE IF NOT EXISTS global.content_customizations
+(
+    id text PRIMARY KEY,
+    company_id text NOT NULL,
+    base_content_id text NOT NULL REFERENCES global.content(id) ON DELETE CASCADE,
+    brand_kit_id text REFERENCES global.brand_kits(id) ON DELETE SET NULL,
+    title text,                -- Customized title (falls back to base content title)
+    customized_html text,      -- The modified HTML after edits (served instead of entry_body_html)
+    customization_data jsonb,  -- Structured record of edits: element selectors → style overrides
+    status text DEFAULT 'draft', -- 'draft', 'published'
+    created_by text,
+    created_at timestamp DEFAULT now(),
+    updated_at timestamp DEFAULT now()
+);
+
+CREATE INDEX idx_content_customizations_company_id ON global.content_customizations(company_id);
+CREATE INDEX idx_content_customizations_base_content ON global.content_customizations(base_content_id);
+CREATE INDEX idx_content_customizations_status ON global.content_customizations(status);
+CREATE INDEX idx_content_customizations_company_content ON global.content_customizations(company_id, base_content_id);
+
 -- Helper function to update timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -119,4 +182,10 @@ CREATE TRIGGER update_content_updated_at BEFORE UPDATE ON global.content
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_tracking_links_updated_at BEFORE UPDATE ON global.oms_tracking_links
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_brand_kits_updated_at BEFORE UPDATE ON global.brand_kits
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_content_customizations_updated_at BEFORE UPDATE ON global.content_customizations
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

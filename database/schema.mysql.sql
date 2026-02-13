@@ -108,3 +108,69 @@ CREATE TABLE IF NOT EXISTS sns_message_queue
 
 CREATE INDEX idx_sns_queue_tracking_link_id ON sns_message_queue(tracking_link_id);
 CREATE INDEX idx_sns_queue_sent ON sns_message_queue(sent);
+
+-- =========================================================================
+-- Customization Tables
+-- =========================================================================
+
+-- Brand kits - stores per-company brand assets (logo, fonts, colors)
+CREATE TABLE IF NOT EXISTS brand_kits
+(
+    id VARCHAR(255) PRIMARY KEY,
+    company_id VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL DEFAULT 'Default',
+    logo_url TEXT,              -- S3 URL for uploaded logo
+    logo_filename VARCHAR(255), -- Original filename for display
+    primary_color VARCHAR(7),   -- Hex color, e.g. '#4F46E5'
+    secondary_color VARCHAR(7),
+    accent_color VARCHAR(7),
+    saved_colors JSON,          -- Array of additional hex colors
+    primary_font VARCHAR(255),  -- Font family name, e.g. 'Inter'
+    secondary_font VARCHAR(255),
+    custom_font_urls JSON,      -- Array of S3 URLs for uploaded font files
+    is_default BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_company_kit (company_id, name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_brand_kits_company_id ON brand_kits(company_id);
+
+-- Brand kit assets - stores uploaded files (logos, fonts) metadata
+CREATE TABLE IF NOT EXISTS brand_kit_assets
+(
+    id VARCHAR(255) PRIMARY KEY,
+    brand_kit_id VARCHAR(255) NOT NULL,
+    asset_type VARCHAR(50) NOT NULL,  -- 'logo', 'font', 'icon'
+    filename VARCHAR(255) NOT NULL,
+    s3_url TEXT NOT NULL,
+    mime_type VARCHAR(100),
+    file_size INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (brand_kit_id) REFERENCES brand_kits(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_brand_kit_assets_brand_kit_id ON brand_kit_assets(brand_kit_id);
+
+-- Content customizations - stores customized versions of base content templates
+CREATE TABLE IF NOT EXISTS content_customizations
+(
+    id VARCHAR(255) PRIMARY KEY,
+    company_id VARCHAR(255) NOT NULL,
+    base_content_id VARCHAR(255) NOT NULL,
+    brand_kit_id VARCHAR(255),
+    title TEXT,                 -- Customized title (falls back to base content title)
+    customized_html LONGTEXT,  -- The modified HTML after edits (served instead of entry_body_html)
+    customization_data JSON,   -- Structured record of edits: element selectors → style overrides
+    status VARCHAR(50) DEFAULT 'draft', -- 'draft', 'published'
+    created_by VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (base_content_id) REFERENCES content(id) ON DELETE CASCADE,
+    FOREIGN KEY (brand_kit_id) REFERENCES brand_kits(id) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_content_customizations_company_id ON content_customizations(company_id);
+CREATE INDEX idx_content_customizations_base_content ON content_customizations(base_content_id);
+CREATE INDEX idx_content_customizations_status ON content_customizations(status);
+CREATE INDEX idx_content_customizations_company_content ON content_customizations(company_id, base_content_id);
