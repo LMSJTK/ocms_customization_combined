@@ -61,6 +61,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 </div>
                 <div class="flex items-center space-x-4">
                     <button onclick="showView('portal')" class="text-gray-600 hover:text-blue-600 text-sm"><i class="fa-solid fa-home mr-1"></i> Home</button>
+                    <button onclick="showView('upload')" class="text-gray-600 hover:text-blue-600 text-sm"><i class="fa-solid fa-cloud-arrow-up mr-1"></i> Upload</button>
                     <button onclick="showView('brand-kit')" class="text-gray-600 hover:text-blue-600 text-sm"><i class="fa-solid fa-palette mr-1"></i> Brand Kit</button>
                 </div>
             </div>
@@ -210,6 +211,159 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- VIEW: Upload Content                                       -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="upload-view" class="hidden">
+            <div class="max-w-3xl mx-auto p-8">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h1 class="text-3xl font-bold">Upload Content</h1>
+                        <p class="text-gray-600 mt-1">Upload new templates to the content library.</p>
+                    </div>
+                    <button onclick="showView('portal')" class="text-sm text-gray-600 hover:text-gray-900"><i class="fa-solid fa-arrow-left mr-1"></i>Back to Gallery</button>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-sm p-8">
+                    <!-- Upload alert -->
+                    <div id="upload-alert" class="hidden rounded-lg p-4 mb-6 text-sm font-medium"></div>
+
+                    <!-- Content type selector -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-semibold mb-2">Content Type</label>
+                        <select id="upload-type-selector" onchange="showUploadForm()" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">Select content type...</option>
+                            <option value="email">Email (Phishing Training)</option>
+                            <option value="training">Education / Raw HTML</option>
+                            <option value="landing">Landing Page</option>
+                            <option value="scorm">SCORM Package (ZIP)</option>
+                            <option value="html">HTML Package (ZIP)</option>
+                            <option value="video">Video (MP4)</option>
+                        </select>
+                    </div>
+
+                    <!-- ── Email Upload Form ───────────────────── -->
+                    <form id="upload-form-email" class="hidden space-y-5" onsubmit="submitUpload(event)">
+                        <input type="hidden" name="content_type" value="email">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Title <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Email Subject <span class="text-red-500">*</span></label>
+                            <input type="text" name="email_subject" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Email From Address <span class="text-red-500">*</span></label>
+                            <input type="email" name="email_from" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" placeholder="sender@example.com">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Email HTML Content <span class="text-red-500">*</span></label>
+                            <textarea name="email_html" required rows="10" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-mono" placeholder="Paste the email HTML here..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                            <input type="file" name="thumbnail" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Attachment (Optional)</label>
+                            <input type="file" name="attachment" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                            <p class="text-xs text-gray-500 mt-1">PDF, DOC, XLS, etc.</p>
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload &amp; Process</button>
+                    </form>
+
+                    <!-- ── Raw HTML / Education Form ───────────── -->
+                    <form id="upload-form-training" class="hidden space-y-5" onsubmit="submitUpload(event)">
+                        <input type="hidden" name="content_type" value="training">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Title <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Description</label>
+                            <textarea name="description" rows="2" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">HTML Content <span class="text-red-500">*</span></label>
+                            <textarea name="html_content" required rows="10" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-mono" placeholder="Paste your HTML content here..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                            <input type="file" name="thumbnail" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload &amp; Process</button>
+                    </form>
+
+                    <!-- ── Landing Page Form ───────────────────── -->
+                    <form id="upload-form-landing" class="hidden space-y-5" onsubmit="submitUpload(event)">
+                        <input type="hidden" name="content_type" value="landing">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Title <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Description</label>
+                            <textarea name="description" rows="2" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">HTML Content <span class="text-red-500">*</span></label>
+                            <textarea name="html_content" required rows="10" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm font-mono" placeholder="Paste your landing page HTML here..."></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                            <input type="file" name="thumbnail" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload &amp; Process</button>
+                    </form>
+
+                    <!-- ── SCORM / HTML ZIP Form ───────────────── -->
+                    <form id="upload-form-zip" class="hidden space-y-5" onsubmit="submitUpload(event)">
+                        <input type="hidden" name="content_type" value="">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Title <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Description</label>
+                            <textarea name="description" rows="2" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">ZIP File <span class="text-red-500">*</span></label>
+                            <input type="file" name="file" accept=".zip" required class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                            <input type="file" name="thumbnail" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload &amp; Process</button>
+                    </form>
+
+                    <!-- ── Video Form ──────────────────────────── -->
+                    <form id="upload-form-video" class="hidden space-y-5" onsubmit="submitUpload(event)">
+                        <input type="hidden" name="content_type" value="video">
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Title <span class="text-red-500">*</span></label>
+                            <input type="text" name="title" required class="w-full p-2.5 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Description</label>
+                            <textarea name="description" rows="2" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Video File <span class="text-red-500">*</span></label>
+                            <input type="file" name="file" accept=".mp4,.webm,.ogg" required class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold mb-1">Thumbnail (Optional)</label>
+                            <input type="file" name="thumbnail" accept="image/*" class="w-full p-2 border border-gray-300 rounded-lg text-sm">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors"><i class="fa-solid fa-cloud-arrow-up mr-2"></i>Upload &amp; Process</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -488,7 +642,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
         // ── View Navigation ─────────────────────────────────────
         window.showView = function(view) {
-            ['portal', 'brand-kit', 'editor'].forEach(v => {
+            ['portal', 'brand-kit', 'upload', 'editor'].forEach(v => {
                 document.getElementById(v + '-view').classList.toggle('hidden', v !== view);
             });
             currentView = view;
@@ -496,6 +650,80 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
             if (view === 'portal') loadTemplates();
             if (view === 'brand-kit') loadBrandKit();
+        };
+
+        // ═════════════════════════════════════════════════════════
+        // UPLOAD CONTENT
+        // ═════════════════════════════════════════════════════════
+        const uploadForms = ['email', 'training', 'landing', 'zip', 'video'];
+
+        window.showUploadForm = function() {
+            const type = document.getElementById('upload-type-selector').value;
+            uploadForms.forEach(f => document.getElementById('upload-form-' + f).classList.add('hidden'));
+            hideUploadAlert();
+
+            if (!type) return;
+
+            if (type === 'scorm' || type === 'html') {
+                const form = document.getElementById('upload-form-zip');
+                form.querySelector('input[name="content_type"]').value = type;
+                form.classList.remove('hidden');
+            } else {
+                const form = document.getElementById('upload-form-' + type);
+                if (form) form.classList.remove('hidden');
+            }
+        };
+
+        function showUploadAlert(type, message) {
+            const el = document.getElementById('upload-alert');
+            el.className = 'rounded-lg p-4 mb-6 text-sm font-medium ' +
+                (type === 'success' ? 'bg-green-50 text-green-800 border border-green-200' : 'bg-red-50 text-red-800 border border-red-200');
+            el.innerHTML = message;
+            el.classList.remove('hidden');
+        }
+
+        function hideUploadAlert() {
+            document.getElementById('upload-alert').classList.add('hidden');
+        }
+
+        window.submitUpload = async function(event) {
+            event.preventDefault();
+            const form = event.target;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            const origLabel = submitBtn.innerHTML;
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner"></span> Uploading...';
+            hideUploadAlert();
+
+            try {
+                const formData = new FormData(form);
+
+                const res = await fetch(API + '/upload.php', {
+                    method: 'POST',
+                    headers: TOKEN ? { 'Authorization': 'Bearer ' + TOKEN } : {},
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    let msg = '<strong>Uploaded successfully!</strong> Content ID: <code class="bg-green-100 px-1 rounded">' + esc(data.content_id) + '</code>';
+                    if (data.tags && data.tags.length) msg += '<br>Tags: ' + data.tags.map(t => '<span class="inline-block bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full mr-1">' + esc(t) + '</span>').join('');
+                    if (data.cues && data.cues.length) msg += '<br>Cues: ' + data.cues.map(c => '<span class="inline-block bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full mr-1">' + esc(c) + '</span>').join('');
+                    if (data.difficulty) { const labels = {1:'Least Difficult',2:'Moderately Difficult',3:'Very Difficult'}; msg += '<br>Difficulty: ' + (labels[data.difficulty] || data.difficulty); }
+                    if (data.preview_url) msg += '<br><a href="' + esc(data.preview_url) + '" target="_blank" class="text-blue-600 underline">Preview Content</a>';
+                    showUploadAlert('success', msg);
+                    form.reset();
+                    toast('Content uploaded!');
+                } else {
+                    showUploadAlert('error', esc(data.error || data.message || 'Upload failed'));
+                }
+            } catch (e) {
+                showUploadAlert('error', 'Upload failed: ' + esc(e.message));
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = origLabel;
+            }
         };
 
         // ═════════════════════════════════════════════════════════
