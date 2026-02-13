@@ -28,7 +28,7 @@ try {
     $query = '
         SELECT DISTINCT c.id, c.company_id, c.title, c.description, c.content_type, c.content_preview,
                c.content_url, c.email_from_address, c.email_subject, c.email_body_html,
-               c.attachment_filename, c.thumbnail_filename, c.tags, c.difficulty, c.content_domain,
+               c.email_attachment_filename, c.thumbnail_filename, c.tags, c.difficulty, c.content_domain,
                c.scorable, c.created_at, c.updated_at
         FROM content c
     ';
