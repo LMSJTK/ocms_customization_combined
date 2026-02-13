@@ -444,7 +444,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         // ── Config ──────────────────────────────────────────────
         const API = <?php echo json_encode($apiBase); ?>;
         const COMPANY_ID = <?php echo json_encode($companyId); ?>;
-        const TOKEN = ''; // Set bearer token if auth is enabled
+        const TOKEN = <?php echo json_encode($config['api']['bearer_token'] ?? ''); ?>;
         const headers = () => {
             const h = { 'Content-Type': 'application/json' };
             if (TOKEN) h['Authorization'] = 'Bearer ' + TOKEN;
