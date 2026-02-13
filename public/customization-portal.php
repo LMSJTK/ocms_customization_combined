@@ -27,6 +27,8 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5/47.5.0/ckeditor5.css" crossorigin>
+    <link rel="stylesheet" href="https://cdn.ckeditor.com/ckeditor5-premium-features/47.5.0/ckeditor5-premium-features.css" crossorigin>
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8f9fa; }
         .main-gradient { background-image: linear-gradient(to bottom, rgba(230,240,255,0.5), rgba(248,249,250,1)); }
@@ -45,6 +47,109 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         .toast.error { background: #DC2626; }
         .spinner { display: inline-block; width: 1rem; height: 1rem; border: 2px solid rgba(255,255,255,.3); border-top-color: white; border-radius: 50%; animation: spin .6s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* CKEditor 5 Document Editor Styles */
+        :root {
+            --ck-sidebar-width: 270px;
+            --ck-editor-height: 100%;
+        }
+        .ckeditor-main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            min-width: 0;
+        }
+        .editor-container_document-editor {
+            border: 1px solid var(--ck-color-base-border);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .editor-container_document-editor .editor-container__toolbar {
+            display: flex;
+            position: relative;
+            box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+        }
+        .editor-container_document-editor .editor-container__toolbar > .ck.ck-toolbar {
+            flex-grow: 1;
+            width: 0;
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+            border-top: 0;
+            border-left: 0;
+            border-right: 0;
+        }
+        .editor-container_document-editor .editor-container__menu-bar > .ck.ck-menu-bar {
+            border-bottom-right-radius: 0;
+            border-bottom-left-radius: 0;
+            border-top: 0;
+            border-left: 0;
+            border-right: 0;
+        }
+        .editor-container_document-editor .editor-container__editor-wrapper {
+            overflow-y: scroll;
+            background: var(--ck-color-base-foreground);
+            flex: 1;
+        }
+        .editor-container_document-editor .editor-container__editor {
+            margin-top: 28px;
+            margin-bottom: 28px;
+            height: 100%;
+        }
+        .editor-container_document-editor .editor-container__editor .ck.ck-editor__editable {
+            box-sizing: border-box;
+            min-width: calc(210mm + 2px);
+            max-width: calc(210mm + 2px);
+            min-height: 297mm;
+            height: fit-content;
+            padding: 20mm 12mm;
+            border: 1px hsl(0, 0%, 82.7%) solid;
+            background: hsl(0, 0%, 100%);
+            box-shadow: 0 2px 3px hsla(0, 0%, 0%, 0.078);
+            flex: 1 1 auto;
+            margin-left: 72px;
+            margin-right: 72px;
+        }
+        .editor-container__sidebar {
+            min-width: var(--ck-sidebar-width);
+            max-width: var(--ck-sidebar-width);
+            margin-top: 28px;
+            margin-left: 10px;
+            margin-right: 10px;
+        }
+        .editor-container__editable-wrapper {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            flex: 1;
+            overflow: hidden;
+        }
+        .editor-container__sidebar_ckeditor-ai {
+            margin: 0;
+            transition: min-width 0.3s ease;
+            overflow: auto;
+            max-width: calc(var(--ck-sidebar-width) * 2);
+            min-width: calc(var(--ck-sidebar-width) * 2);
+        }
+        .editor-container__sidebar_ckeditor-ai > .ck.ck-tabs.ck-ai-tabs {
+            height: 100%;
+            border-top: 0;
+            border-right: 0;
+            border-bottom: 0;
+        }
+        .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
+            max-width: 0;
+            min-width: 0;
+        }
+        .editor-container__editor-wrapper {
+            display: flex;
+            width: fit-content;
+        }
+        @media print {
+            body { margin: 0 !important; }
+        }
     </style>
 </head>
 <body class="text-gray-800">
@@ -385,9 +490,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                             <p class="text-xs text-gray-500 ml-8" id="editor-save-status">Not saved yet</p>
                         </div>
                         <div class="flex items-center space-x-2">
-                            <button onclick="setEditorMode('edit')" id="mode-edit-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"><i class="fa-solid fa-pen mr-1"></i>Edit</button>
-                            <button onclick="setEditorMode('preview')" id="mode-preview-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50"><i class="fa-regular fa-eye mr-1"></i>Preview</button>
-                            <div class="w-px h-6 bg-gray-200 mx-1"></div>
                             <button onclick="saveCustomization('draft')" class="px-4 py-1.5 rounded-lg text-sm font-semibold border bg-white hover:bg-gray-50">Save Draft</button>
                             <button onclick="saveCustomization('published')" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700"><i class="fa-solid fa-rocket mr-1"></i>Publish</button>
                             <button onclick="generatePreviewLink()" id="preview-link-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50" title="Generate preview link"><i class="fa-solid fa-link mr-1"></i>Preview Link</button>
@@ -418,49 +520,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                                 </div>
                                 <p class="text-xs text-gray-600 mt-2">Your brand colors and logo have been applied.</p>
                                 <button onclick="undoBrandKit()" class="w-full bg-white border border-gray-300 mt-3 py-2 rounded-lg font-semibold text-sm hover:bg-gray-50"><i class="fa-solid fa-arrow-rotate-left mr-1"></i>Undo Changes</button>
-                            </div>
-                        </div>
-
-                        <!-- Element Editing Section -->
-                        <div id="editing-state" class="hidden">
-                            <h3 class="font-semibold text-sm mb-3">Editing Element</h3>
-                            <div class="space-y-3">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Background Color</label>
-                                    <div class="flex items-center border bg-white rounded-md p-1">
-                                        <input type="color" id="edit-bg-color" value="#ffffff" class="w-6 h-6 rounded cursor-pointer p-0">
-                                        <input type="text" id="edit-bg-hex" class="ml-2 text-xs border-none focus:ring-0 w-full font-mono" value="#FFFFFF">
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Text Color</label>
-                                    <div class="flex items-center border bg-white rounded-md p-1">
-                                        <input type="color" id="edit-text-color" value="#000000" class="w-6 h-6 rounded cursor-pointer p-0">
-                                        <input type="text" id="edit-text-hex" class="ml-2 text-xs border-none focus:ring-0 w-full font-mono" value="#000000">
-                                    </div>
-                                </div>
-                                <div class="grid grid-cols-2 gap-2">
-                                    <div>
-                                        <label class="block text-xs text-gray-600 mb-1">Font Size</label>
-                                        <select id="edit-font-size" class="w-full p-1.5 border rounded text-xs">
-                                            <option>12px</option><option>14px</option><option>16px</option><option>18px</option><option>20px</option><option>24px</option><option>28px</option><option>32px</option><option>48px</option>
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label class="block text-xs text-gray-600 mb-1">Font Weight</label>
-                                        <select id="edit-font-weight" class="w-full p-1.5 border rounded text-xs">
-                                            <option value="400">Regular</option><option value="500">Medium</option><option value="600">Semibold</option><option value="700">Bold</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">Text Alignment</label>
-                                    <div class="grid grid-cols-3 gap-1 bg-gray-200 p-1 rounded-lg">
-                                        <button data-align="left" class="text-align-btn bg-white rounded py-1 text-sm"><i class="fas fa-align-left"></i></button>
-                                        <button data-align="center" class="text-align-btn rounded py-1 text-sm"><i class="fas fa-align-center"></i></button>
-                                        <button data-align="right" class="text-align-btn rounded py-1 text-sm"><i class="fas fa-align-right"></i></button>
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -544,24 +603,19 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                         </div>
                     </div>
 
-                    <!-- Bottom: HTML Editor Toggle -->
-                    <button onclick="toggleHtmlEditor()" class="w-full border border-gray-300 py-2 rounded-lg font-semibold hover:bg-gray-100 text-xs mt-3">
-                        <i class="fa-solid fa-code mr-1"></i>Advanced HTML Editor
-                    </button>
                 </div>
 
-                <!-- Preview Pane -->
-                <div class="email-preview-container flex flex-col">
-                    <div id="preview-pane" class="flex-1 p-6 flex justify-center overflow-y-auto">
-                        <iframe id="content-iframe" class="bg-white rounded-lg shadow-lg w-full max-w-2xl" style="border:none; min-height:600px;" sandbox="allow-same-origin"></iframe>
-                    </div>
-                    <!-- HTML Editor (hidden by default) -->
-                    <div id="html-editor-panel" class="hidden border-t border-gray-300 bg-white" style="height:300px;">
-                        <div class="flex items-center justify-between px-3 py-1.5 bg-gray-100 border-b">
-                            <span class="text-xs font-semibold text-gray-600">HTML Source</span>
-                            <button onclick="applyHtmlEdits()" class="text-xs bg-blue-600 text-white px-3 py-1 rounded font-semibold">Apply Changes</button>
+                <!-- CKEditor 5 Container -->
+                <div class="ckeditor-main-container">
+                    <div class="editor-container editor-container_document-editor editor-container_contains-wrapper">
+                        <div class="editor-container__menu-bar" id="editor-menu-bar"></div>
+                        <div class="editor-container__toolbar" id="editor-toolbar"></div>
+                        <div class="editor-container__editable-wrapper">
+                            <div class="editor-container__editor-wrapper">
+                                <div class="editor-container__editor"><div id="editor"></div></div>
+                            </div>
+                            <div class="editor-container__sidebar editor-container__sidebar_ckeditor-ai" id="editor-ckeditor-ai"></div>
                         </div>
-                        <textarea id="html-editor-textarea" class="w-full h-full p-3 text-xs font-mono border-none focus:ring-0 resize-none" style="height: calc(100% - 36px);"></textarea>
                     </div>
                 </div>
             </div>
@@ -591,6 +645,8 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         </div>
     </div>
 
+    <script src="https://cdn.ckeditor.com/ckeditor5/47.5.0/ckeditor5.umd.js" crossorigin></script>
+    <script src="https://cdn.ckeditor.com/ckeditor5-premium-features/47.5.0/ckeditor5-premium-features.umd.js" crossorigin></script>
     <script>
     (function() {
         'use strict';
@@ -614,14 +670,13 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         let currentCustomizationId = null;
         let currentCustomization = null;
         let originalHtml = '';
-        let editorMode = 'edit';
-        let selectedElement = null;
         let editHistory = [];
         let autoSaveTimer = null;
         let currentContentType = null;
         let threatTaxonomy = null;
         let lastTranslatedHtml = null;
         let lastQuizData = null;
+        let editorInstance = null;
 
         // ── Toast ───────────────────────────────────────────────
         function toast(msg, type = 'success') {
@@ -642,6 +697,14 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
         // ── View Navigation ─────────────────────────────────────
         window.showView = function(view) {
+            // Destroy CKEditor when leaving editor view
+            if (currentView === 'editor' && view !== 'editor') {
+                destroyCKEditor();
+                // Remove threat highlight styles if active
+                const threatStyle = document.getElementById('ocms-threat-styles');
+                if (threatStyle) threatStyle.remove();
+            }
+
             ['portal', 'brand-kit', 'upload', 'editor'].forEach(v => {
                 document.getElementById(v + '-view').classList.toggle('hidden', v !== view);
             });
@@ -961,24 +1024,176 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         setupDropZone('font-drop-zone', 'font-file-input', 'font');
 
         // ═════════════════════════════════════════════════════════
-        // STORY 4.3: Content Editor
+        // STORY 4.3: Content Editor (CKEditor 5 Integration)
         // ═════════════════════════════════════════════════════════
-        const iframe = document.getElementById('content-iframe');
 
+        // ── CKEditor 5 Setup ─────────────────────────────────────
+        const {
+            DecoupledEditor, Autosave, Essentials, Paragraph, CloudServices,
+            Autoformat, TextTransformation, LinkImage, Link, ImageBlock,
+            ImageToolbar, BlockQuote, Bold, Bookmark, CKBox, ImageUpload,
+            ImageInsert, ImageInsertViaUrl, AutoImage, PictureEditing,
+            CKBoxImageEdit, CodeBlock, TableColumnResize, Table, TableToolbar,
+            Emoji, Mention, PasteFromOffice, FindAndReplace, FontBackgroundColor,
+            FontColor, FontFamily, FontSize, Fullscreen, Heading, HorizontalLine,
+            ImageCaption, ImageResize, ImageStyle, Indent, IndentBlock, Code,
+            Italic, AutoLink, ListProperties, List, MediaEmbed, RemoveFormat,
+            SpecialCharactersArrows, SpecialCharacters, SpecialCharactersCurrency,
+            SpecialCharactersEssentials, SpecialCharactersLatin,
+            SpecialCharactersMathematical, SpecialCharactersText, Strikethrough,
+            Subscript, Superscript, TableCaption, TableCellProperties,
+            TableProperties, Alignment, TodoList, Underline, ShowBlocks,
+            GeneralHtmlSupport, HtmlEmbed, HtmlComment, FullPage, BalloonToolbar
+        } = window.CKEDITOR;
+        const {
+            AIChat, AIEditorIntegration, AIQuickActions, AIReviewMode,
+            AITranslate, PasteFromOfficeEnhanced, FormatPainter, LineHeight,
+            SlashCommand, SourceEditingEnhanced, EmailConfigurationHelper
+        } = window.CKEDITOR_PREMIUM_FEATURES;
+
+        const CK_LICENSE_KEY = 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3NzIyMzY3OTksImp0aSI6IjIxZTQ1MmI0LTM0YTQtNGE0OC1hZTlkLWU4MWUwYjc2Mzc4ZSIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiLCJzaCJdLCJ3aGl0ZUxhYmVsIjp0cnVlLCJsaWNlbnNlVHlwZSI6InRyaWFsIiwiZmVhdHVyZXMiOlsiKiJdLCJ2YyI6IjcyMDRjYmFiIn0.CBOtUlCMTxAYX0D-L452hvTJfdlSflqyINhXRfFDo8JLQFEqsY46_wJJ6RwAcM5WsLVUrZ-OmUexNgry09fvYw';
+        const CK_TOKEN_URL = 'https://6g4uh9w4eo7q.cke-cs.com/token/dev/2bdd793dab06e28b02c8afcc1afa97db747c0641696eac3842344e89de51?limit=10';
+        const DEFAULT_HEX_COLORS = [
+            { color: '#000000', label: 'Black' }, { color: '#4D4D4D', label: 'Dim grey' },
+            { color: '#999999', label: 'Grey' }, { color: '#E6E6E6', label: 'Light grey' },
+            { color: '#FFFFFF', label: 'White', hasBorder: true }, { color: '#E65C5C', label: 'Red' },
+            { color: '#E69C5C', label: 'Orange' }, { color: '#E6E65C', label: 'Yellow' },
+            { color: '#C2E65C', label: 'Light green' }, { color: '#5CE65C', label: 'Green' },
+            { color: '#5CE6A6', label: 'Aquamarine' }, { color: '#5CE6E6', label: 'Turquoise' },
+            { color: '#5CA6E6', label: 'Light blue' }, { color: '#5C5CE6', label: 'Blue' },
+            { color: '#A65CE6', label: 'Purple' }
+        ];
+
+        function getCKEditorConfig() {
+            return {
+                toolbar: {
+                    items: [
+                        'undo', 'redo', '|',
+                        'toggleAi', 'aiQuickActions', '|',
+                        'sourceEditingEnhanced', 'showBlocks', 'formatPainter', 'findAndReplace', 'fullscreen', '|',
+                        'heading', '|',
+                        'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
+                        'bold', 'italic', 'underline', 'strikethrough', 'subscript', 'superscript', 'code', 'removeFormat', '|',
+                        'emoji', 'specialCharacters', 'horizontalLine', 'link', 'bookmark',
+                        'insertImage', 'insertImageViaUrl', 'ckbox', 'mediaEmbed', 'insertTable', 'blockQuote', 'codeBlock', 'htmlEmbed', '|',
+                        'alignment', 'lineHeight', '|',
+                        'bulletedList', 'numberedList', 'todoList', 'outdent', 'indent'
+                    ],
+                    shouldNotGroupWhenFull: false
+                },
+                plugins: [
+                    AIChat, AIEditorIntegration, AIQuickActions, AIReviewMode, AITranslate,
+                    Alignment, Autoformat, AutoImage, AutoLink, Autosave, BalloonToolbar,
+                    BlockQuote, Bold, Bookmark, CKBox, CKBoxImageEdit, CloudServices,
+                    Code, CodeBlock, EmailConfigurationHelper, Emoji, Essentials,
+                    FindAndReplace, FontBackgroundColor, FontColor, FontFamily, FontSize,
+                    FormatPainter, FullPage, Fullscreen, GeneralHtmlSupport, Heading,
+                    HorizontalLine, HtmlComment, HtmlEmbed, ImageBlock, ImageCaption,
+                    ImageInsert, ImageInsertViaUrl, ImageResize, ImageStyle, ImageToolbar,
+                    ImageUpload, Indent, IndentBlock, Italic, LineHeight, Link, LinkImage,
+                    List, ListProperties, MediaEmbed, Mention, Paragraph, PasteFromOffice,
+                    PasteFromOfficeEnhanced, PictureEditing, RemoveFormat, ShowBlocks,
+                    SlashCommand, SourceEditingEnhanced, SpecialCharacters,
+                    SpecialCharactersArrows, SpecialCharactersCurrency,
+                    SpecialCharactersEssentials, SpecialCharactersLatin,
+                    SpecialCharactersMathematical, SpecialCharactersText, Strikethrough,
+                    Subscript, Superscript, Table, TableCaption, TableCellProperties,
+                    TableColumnResize, TableProperties, TableToolbar, TextTransformation,
+                    TodoList, Underline
+                ],
+                ai: {
+                    container: {
+                        type: 'sidebar',
+                        element: document.querySelector('#editor-ckeditor-ai'),
+                        showResizeButton: false
+                    },
+                    chat: { context: { document: { enabled: true }, urls: { enabled: true }, files: { enabled: true } } }
+                },
+                balloonToolbar: ['aiQuickActions', '|', 'bold', 'italic', '|', 'link', 'insertImage', '|', 'bulletedList', 'numberedList'],
+                cloudServices: { tokenUrl: CK_TOKEN_URL },
+                fontBackgroundColor: { colorPicker: { format: 'hex' }, colors: DEFAULT_HEX_COLORS },
+                fontColor: { colorPicker: { format: 'hex' }, colors: DEFAULT_HEX_COLORS },
+                fontFamily: { supportAllValues: true },
+                fontSize: { options: [10, 12, 14, 'default', 18, 20, 22], supportAllValues: true },
+                fullscreen: {
+                    onEnterCallback: container => container.classList.add(
+                        'editor-container', 'editor-container_document-editor',
+                        'editor-container_contains-wrapper', 'ckeditor-main-container'
+                    )
+                },
+                heading: {
+                    options: [
+                        { model: 'paragraph', title: 'Paragraph', class: 'ck-heading_paragraph' },
+                        { model: 'heading1', view: 'h1', title: 'Heading 1', class: 'ck-heading_heading1' },
+                        { model: 'heading2', view: 'h2', title: 'Heading 2', class: 'ck-heading_heading2' },
+                        { model: 'heading3', view: 'h3', title: 'Heading 3', class: 'ck-heading_heading3' },
+                        { model: 'heading4', view: 'h4', title: 'Heading 4', class: 'ck-heading_heading4' },
+                        { model: 'heading5', view: 'h5', title: 'Heading 5', class: 'ck-heading_heading5' },
+                        { model: 'heading6', view: 'h6', title: 'Heading 6', class: 'ck-heading_heading6' }
+                    ]
+                },
+                htmlSupport: {
+                    allow: [{ name: /.*/, styles: true, attributes: true, classes: true }]
+                },
+                image: {
+                    toolbar: ['toggleImageCaption', '|', 'imageStyle:alignBlockLeft', 'imageStyle:block', 'imageStyle:alignBlockRight', '|', 'resizeImage', '|', 'ckboxImageEdit'],
+                    styles: { options: ['alignBlockLeft', 'block', 'alignBlockRight'] }
+                },
+                licenseKey: CK_LICENSE_KEY,
+                lineHeight: { supportAllValues: true },
+                link: {
+                    addTargetToExternalLinks: true,
+                    defaultProtocol: 'https://',
+                    decorators: { toggleDownloadable: { mode: 'manual', label: 'Downloadable', attributes: { download: 'file' } } }
+                },
+                list: { properties: { styles: true, startIndex: true, reversed: false } },
+                mention: { feeds: [{ marker: '@', feed: [] }] },
+                placeholder: 'Content will be loaded here...',
+                table: {
+                    contentToolbar: ['tableColumn', 'tableRow', 'mergeTableCells', 'tableProperties', 'tableCellProperties'],
+                    tableProperties: { borderColors: DEFAULT_HEX_COLORS, backgroundColors: DEFAULT_HEX_COLORS },
+                    tableCellProperties: { borderColors: DEFAULT_HEX_COLORS, backgroundColors: DEFAULT_HEX_COLORS }
+                }
+            };
+        }
+
+        async function initCKEditor() {
+            // Destroy previous instance if exists
+            if (editorInstance) {
+                await editorInstance.destroy();
+                editorInstance = null;
+            }
+            // Clear toolbar/menubar containers (CKEditor appends children)
+            document.getElementById('editor-toolbar').innerHTML = '';
+            document.getElementById('editor-menu-bar').innerHTML = '';
+
+            const config = getCKEditorConfig();
+            const editor = await DecoupledEditor.create(document.querySelector('#editor'), config);
+            document.querySelector('#editor-toolbar').appendChild(editor.ui.view.toolbar.element);
+            document.querySelector('#editor-menu-bar').appendChild(editor.ui.view.menuBarView.element);
+            editorInstance = editor;
+            return editor;
+        }
+
+        async function destroyCKEditor() {
+            if (editorInstance) {
+                await editorInstance.destroy();
+                editorInstance = null;
+            }
+        }
+
+        // ── Editor open/close ────────────────────────────────────
         window.openEditor = async function(contentId) {
             currentContentId = contentId;
             currentCustomizationId = null;
             currentCustomization = null;
             editHistory = [];
-            selectedElement = null;
 
             showView('editor');
             document.getElementById('brand-kit-available-state').classList.remove('hidden');
             document.getElementById('brand-kit-applied-state').classList.add('hidden');
-            document.getElementById('editing-state').classList.add('hidden');
 
             try {
-                // Load base content HTML
                 const data = await api('list-content.php?id=' + contentId);
                 const content = (data.content || [])[0];
                 if (!content) throw new Error('Content not found');
@@ -988,7 +1203,10 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 originalHtml = html;
                 document.getElementById('editor-title').value = content.title || 'Untitled';
                 updateEditorStatus('draft');
-                loadPreview(html);
+
+                // Initialize CKEditor and load content
+                await initCKEditor();
+                editorInstance.setData(html);
 
                 // Show threat sidebar for email content
                 document.getElementById('sidebar-threats').classList.toggle('hidden', currentContentType !== 'email');
@@ -1021,169 +1239,35 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 updateEditorStatus(cust.status);
 
                 originalHtml = cust.customized_html || '';
-                loadPreview(originalHtml);
+
+                // Initialize CKEditor and load content
+                await initCKEditor();
+                editorInstance.setData(originalHtml);
 
                 // Show applied state if brand kit was used
                 const brandApplied = cust.customization_data?.brand_kit_applied;
                 document.getElementById('brand-kit-available-state').classList.toggle('hidden', brandApplied);
                 document.getElementById('brand-kit-applied-state').classList.toggle('hidden', !brandApplied);
-                document.getElementById('editing-state').classList.add('hidden');
             } catch (e) {
                 toast('Failed to load customization: ' + e.message, 'error');
             }
         };
 
         function loadPreview(html) {
-            const doc = iframe.contentDocument || iframe.contentWindow.document;
-            doc.open();
-            doc.write(html);
-            doc.close();
-
-            // Wait for content to render, then set up editing
-            setTimeout(() => {
-                setupIframeEditing();
-                resizeIframe();
-            }, 100);
-        }
-
-        function resizeIframe() {
-            try {
-                const doc = iframe.contentDocument;
-                if (doc && doc.body) {
-                    iframe.style.height = Math.max(600, doc.body.scrollHeight + 40) + 'px';
-                }
-            } catch(e) {}
-        }
-
-        function setupIframeEditing() {
-            if (editorMode !== 'edit') return;
-            const doc = iframe.contentDocument;
-            if (!doc) return;
-
-            // Add edit-mode styles
-            let style = doc.getElementById('ocms-edit-styles');
-            if (!style) {
-                style = doc.createElement('style');
-                style.id = 'ocms-edit-styles';
-                doc.head.appendChild(style);
+            if (editorInstance) {
+                editorInstance.setData(html);
             }
-            style.textContent = `
-                [data-ocms-editable]:hover { outline: 2px dashed #93C5FD; cursor: pointer; }
-                [data-ocms-editable].ocms-selected { outline: 2px solid #EF4444 !important; box-shadow: 0 0 8px rgba(239,68,68,0.4); }
-            `;
-
-            // Mark editable elements
-            const editables = doc.querySelectorAll('h1,h2,h3,h4,p,a,button,td,th,div,span,img');
-            editables.forEach(el => el.setAttribute('data-ocms-editable', ''));
-
-            // Click handler
-            doc.addEventListener('click', onIframeClick);
         }
 
-        function onIframeClick(e) {
-            e.preventDefault();
-            const doc = iframe.contentDocument;
-            const target = e.target.closest('[data-ocms-editable]');
-
-            // Deselect previous
-            if (selectedElement) selectedElement.classList.remove('ocms-selected');
-
-            if (!target) {
-                selectedElement = null;
-                document.getElementById('editing-state').classList.add('hidden');
-                document.getElementById('sidebar-brand-kit').classList.remove('hidden');
-                return;
+        function getEditorHtml() {
+            if (editorInstance) {
+                return editorInstance.getData();
             }
-
-            selectedElement = target;
-            target.classList.add('ocms-selected');
-            document.getElementById('sidebar-brand-kit').classList.add('hidden');
-            document.getElementById('editing-state').classList.remove('hidden');
-            populateEditControls(target);
+            return '';
         }
 
-        function populateEditControls(el) {
-            const style = iframe.contentWindow.getComputedStyle(el);
-            const rgbToHex = (rgb) => {
-                const m = rgb.match(/\d+/g);
-                if (!m) return '#FFFFFF';
-                return '#' + ((1 << 24) + (parseInt(m[0]) << 16) + (parseInt(m[1]) << 8) + parseInt(m[2])).toString(16).slice(1);
-            };
-            const bg = rgbToHex(style.backgroundColor);
-            const color = rgbToHex(style.color);
-
-            document.getElementById('edit-bg-color').value = bg;
-            document.getElementById('edit-bg-hex').value = bg.toUpperCase();
-            document.getElementById('edit-text-color').value = color;
-            document.getElementById('edit-text-hex').value = color.toUpperCase();
-            document.getElementById('edit-font-size').value = style.fontSize;
-            document.getElementById('edit-font-weight').value = style.fontWeight;
-
-            document.querySelectorAll('.text-align-btn').forEach(b => {
-                b.classList.toggle('bg-white', b.dataset.align === style.textAlign);
-            });
-        }
-
-        // Wire edit controls
-        function wireControl(id, prop, transform) {
-            document.getElementById(id).addEventListener('input', e => {
-                if (!selectedElement) return;
-                const val = transform ? transform(e.target.value) : e.target.value;
-                selectedElement.style[prop] = val;
-                trackEdit(prop, val);
-                scheduleAutoSave();
-            });
-        }
-
-        wireControl('edit-bg-color', 'backgroundColor');
-        wireControl('edit-text-color', 'color');
-        wireControl('edit-font-size', 'fontSize');
-        wireControl('edit-font-weight', 'fontWeight');
-
-        // Sync hex inputs
-        document.getElementById('edit-bg-color').addEventListener('input', e => { document.getElementById('edit-bg-hex').value = e.target.value.toUpperCase(); });
-        document.getElementById('edit-bg-hex').addEventListener('change', e => { document.getElementById('edit-bg-color').value = e.target.value; if (selectedElement) { selectedElement.style.backgroundColor = e.target.value; scheduleAutoSave(); } });
-        document.getElementById('edit-text-color').addEventListener('input', e => { document.getElementById('edit-text-hex').value = e.target.value.toUpperCase(); });
-        document.getElementById('edit-text-hex').addEventListener('change', e => { document.getElementById('edit-text-color').value = e.target.value; if (selectedElement) { selectedElement.style.color = e.target.value; scheduleAutoSave(); } });
-
-        // Text alignment
-        document.querySelectorAll('.text-align-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                if (selectedElement) {
-                    selectedElement.style.textAlign = btn.dataset.align;
-                    document.querySelectorAll('.text-align-btn').forEach(b => b.classList.toggle('bg-white', b === btn));
-                    trackEdit('textAlign', btn.dataset.align);
-                    scheduleAutoSave();
-                }
-            });
-        });
-
-        function trackEdit(property, value) {
-            editHistory.push({ property, value, timestamp: new Date().toISOString() });
-        }
-
-        // Editor mode toggle
-        window.setEditorMode = function(mode) {
-            editorMode = mode;
-            document.getElementById('mode-edit-btn').classList.toggle('bg-blue-50', mode === 'edit');
-            document.getElementById('mode-edit-btn').classList.toggle('text-blue-700', mode === 'edit');
-            document.getElementById('mode-preview-btn').classList.toggle('bg-blue-50', mode === 'preview');
-            document.getElementById('mode-preview-btn').classList.toggle('text-blue-700', mode === 'preview');
-
-            const doc = iframe.contentDocument;
-            if (!doc) return;
-
-            if (mode === 'preview') {
-                if (selectedElement) selectedElement.classList.remove('ocms-selected');
-                selectedElement = null;
-                document.getElementById('editing-state').classList.add('hidden');
-                document.getElementById('sidebar-brand-kit').classList.remove('hidden');
-                const style = doc.getElementById('ocms-edit-styles');
-                if (style) style.textContent = '';
-            } else {
-                setupIframeEditing();
-            }
-        };
+        // Keep getIframeHtml as alias for backward compat within this file
+        function getIframeHtml() { return getEditorHtml(); }
 
         // Brand Kit apply/undo
         window.applyBrandKit = async function() {
@@ -1214,36 +1298,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             document.getElementById('brand-kit-applied-state').classList.add('hidden');
             document.getElementById('brand-kit-available-state').classList.remove('hidden');
         };
-
-        // HTML Editor
-        window.toggleHtmlEditor = function() {
-            const panel = document.getElementById('html-editor-panel');
-            const isHidden = panel.classList.contains('hidden');
-            panel.classList.toggle('hidden');
-            if (isHidden) {
-                document.getElementById('html-editor-textarea').value = getIframeHtml();
-            }
-        };
-
-        window.applyHtmlEdits = function() {
-            const html = document.getElementById('html-editor-textarea').value;
-            loadPreview(html);
-            toast('HTML changes applied');
-        };
-
-        function getIframeHtml() {
-            const doc = iframe.contentDocument;
-            if (!doc) return '';
-            // Remove editing artifacts before serializing
-            const clone = doc.documentElement.cloneNode(true);
-            const editStyle = clone.querySelector('#ocms-edit-styles');
-            if (editStyle) editStyle.remove();
-            clone.querySelectorAll('[data-ocms-editable]').forEach(el => {
-                el.removeAttribute('data-ocms-editable');
-                el.classList.remove('ocms-selected');
-            });
-            return '<!DOCTYPE html>\n<html>' + clone.innerHTML + '</html>';
-        }
 
         // ═════════════════════════════════════════════════════════
         // STORY 4.4: Save / Publish
@@ -1439,10 +1493,12 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
         window.injectQuiz = async function() {
             if (!lastQuizData || !lastQuizData.quiz_html) { toast('Generate a quiz first', 'error'); return; }
+            if (!editorInstance) return;
 
-            // If working on a customization, inject into customization HTML
-            const doc = iframe.contentDocument;
-            if (!doc) return;
+            // Get current HTML, manipulate via DOMParser, set back
+            let html = getEditorHtml();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
 
             // Remove existing quiz if present
             const existing = doc.getElementById('ocms-quiz-section');
@@ -1454,24 +1510,22 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             quizDiv.innerHTML = lastQuizData.quiz_html;
             doc.body.appendChild(quizDiv);
 
-            // Also inject the quiz JS if not present
-            if (!doc.querySelector('script[src*="ocms-quiz.js"]')) {
-                const script = doc.createElement('script');
-                script.src = '<?php echo htmlspecialchars($basePath); ?>/js/ocms-quiz.js';
-                doc.body.appendChild(script);
-            }
-
+            editorInstance.setData('<!DOCTYPE html>\n' + doc.documentElement.outerHTML);
             toast('Quiz injected');
             scheduleAutoSave();
         };
 
         window.removeQuiz = function() {
-            const doc = iframe.contentDocument;
-            if (!doc) return;
+            if (!editorInstance) return;
+
+            let html = getEditorHtml();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
             const quizSection = doc.getElementById('ocms-quiz-section');
             if (quizSection) quizSection.remove();
-            const quizScript = doc.querySelector('script[src*="ocms-quiz.js"]');
-            if (quizScript) quizScript.remove();
+
+            editorInstance.setData('<!DOCTYPE html>\n' + doc.documentElement.outerHTML);
             toast('Quiz removed');
             scheduleAutoSave();
         };
@@ -1509,43 +1563,51 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
         window.toggleThreatView = function() {
             const active = document.getElementById('threat-view-toggle').checked;
-            const doc = iframe.contentDocument;
-            if (!doc) return;
 
             if (active) {
-                // Inject threat highlight styles
-                let style = doc.getElementById('ocms-threat-styles');
+                // Inject CSS into page targeting CKEditor's editable area
+                let style = document.getElementById('ocms-threat-styles');
                 if (!style) {
-                    style = doc.createElement('style');
+                    style = document.createElement('style');
                     style.id = 'ocms-threat-styles';
-                    doc.head.appendChild(style);
+                    document.head.appendChild(style);
                 }
                 const colorMap = {};
                 (threatTaxonomy || []).forEach(cat => cat.cues.forEach(c => colorMap[c.name] = cat.color));
 
                 let css = '';
                 Object.entries(colorMap).forEach(([name, color]) => {
-                    css += '[data-cue="' + name + '"] { outline: 2px solid ' + color + ' !important; background-color: ' + color + '20 !important; cursor: pointer; }\n';
+                    css += '.ck-editor__editable [data-cue="' + name + '"] { outline: 2px solid ' + color + ' !important; background-color: ' + color + '20 !important; cursor: pointer; }\n';
                 });
                 style.textContent = css;
 
-                // Build summary
-                buildThreatSummary(doc);
+                // Build summary by parsing editor HTML
+                buildThreatSummary();
 
-                // Click handler for threat editing (Story 8.2)
-                doc.addEventListener('click', onThreatElementClick);
+                // Click handler on CKEditor's editing root for threat editing (Story 8.2)
+                if (editorInstance) {
+                    const editingRoot = editorInstance.editing.view.getDomRoot();
+                    if (editingRoot) editingRoot.addEventListener('click', onThreatElementClick);
+                }
             } else {
-                const style = doc.getElementById('ocms-threat-styles');
+                const style = document.getElementById('ocms-threat-styles');
                 if (style) style.remove();
                 document.getElementById('threat-summary').innerHTML = '';
                 document.getElementById('threat-difficulty').innerHTML = '';
                 document.getElementById('threat-edit-panel').classList.add('hidden');
-                doc.removeEventListener('click', onThreatElementClick);
+                if (editorInstance) {
+                    const editingRoot = editorInstance.editing.view.getDomRoot();
+                    if (editingRoot) editingRoot.removeEventListener('click', onThreatElementClick);
+                }
             }
         };
 
-        function buildThreatSummary(doc) {
-            const cueEls = doc.querySelectorAll('[data-cue]');
+        function buildThreatSummary() {
+            // Parse editor HTML for data-cue attributes
+            const html = getEditorHtml();
+            const parser = new DOMParser();
+            const parsedDoc = parser.parseFromString(html, 'text/html');
+            const cueEls = parsedDoc.querySelectorAll('[data-cue]');
             const cueCount = {};
             cueEls.forEach(el => {
                 const cue = el.getAttribute('data-cue');
@@ -1562,25 +1624,26 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 '<span class="status-badge" style="background:' + diffColors[difficulty] + '20;color:' + diffColors[difficulty] + ';">' +
                 difficulty.charAt(0).toUpperCase() + difficulty.slice(1) + ' Difficult (' + totalCues + ' cues)</span>';
 
-            let html = '';
+            let summaryHtml = '';
             (threatTaxonomy || []).forEach(cat => {
                 const catCues = cat.cues.filter(c => cueCount[c.name]);
                 if (!catCues.length) return;
-                html += '<div class="border-l-2 pl-2 mb-1" style="border-color:' + cat.color + ';">' +
+                summaryHtml += '<div class="border-l-2 pl-2 mb-1" style="border-color:' + cat.color + ';">' +
                     '<div class="font-semibold" style="color:' + cat.color + ';">' + esc(cat.type) + ' (' + catCues.length + ')</div>';
                 catCues.forEach(c => {
-                    html += '<div class="text-gray-600 cursor-pointer hover:text-blue-600" onclick="scrollToCue(\'' + c.name + '\')">' +
+                    summaryHtml += '<div class="text-gray-600 cursor-pointer hover:text-blue-600" onclick="scrollToCue(\'' + c.name + '\')">' +
                         esc(c.label) + (cueCount[c.name] > 1 ? ' x' + cueCount[c.name] : '') + '</div>';
                 });
-                html += '</div>';
+                summaryHtml += '</div>';
             });
-            document.getElementById('threat-summary').innerHTML = html || '<p class="text-gray-400">No threat indicators found</p>';
+            document.getElementById('threat-summary').innerHTML = summaryHtml || '<p class="text-gray-400">No threat indicators found</p>';
         }
 
         window.scrollToCue = function(cueName) {
-            const doc = iframe.contentDocument;
-            if (!doc) return;
-            const el = doc.querySelector('[data-cue="' + cueName + '"]');
+            if (!editorInstance) return;
+            const editingRoot = editorInstance.editing.view.getDomRoot();
+            if (!editingRoot) return;
+            const el = editingRoot.querySelector('[data-cue="' + cueName + '"]');
             if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
         };
 
@@ -1590,7 +1653,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
         let threatSelectedElement = null;
 
         function onThreatElementClick(e) {
-            e.preventDefault();
             const el = e.target.closest('[data-cue]') || e.target;
             threatSelectedElement = el;
 
@@ -1609,9 +1671,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             threatSelectedElement.setAttribute('data-cue', cue);
             editHistory.push({ action: 'add_cue', cue, timestamp: new Date().toISOString() });
 
-            // Refresh highlights
-            const doc = iframe.contentDocument;
-            if (doc) buildThreatSummary(doc);
+            buildThreatSummary();
             toast('Cue set: ' + cue);
             scheduleAutoSave();
         };
@@ -1624,8 +1684,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
 
             if (oldCue) editHistory.push({ action: 'remove_cue', cue: oldCue, timestamp: new Date().toISOString() });
 
-            const doc = iframe.contentDocument;
-            if (doc) buildThreatSummary(doc);
+            buildThreatSummary();
             toast('Cue removed');
             scheduleAutoSave();
         };
