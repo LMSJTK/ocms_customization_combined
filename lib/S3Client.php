@@ -251,6 +251,97 @@ class S3Client {
     }
 
     /**
+     * Upload a brand kit asset to S3
+     *
+     * @param string $companyId Company identifier
+     * @param string $brandKitId Brand kit identifier
+     * @param string $assetType Asset type ('logo', 'font', 'icon')
+     * @param string $filename Original filename
+     * @param string $localPath Local file path to upload
+     * @param string|null $contentType MIME type
+     * @return string The S3/CDN URL for the uploaded asset
+     */
+    public function uploadBrandKitAsset($companyId, $brandKitId, $assetType, $filename, $localPath, $contentType = null) {
+        if (!$this->isEnabled()) {
+            throw new Exception('S3 storage is not enabled');
+        }
+
+        $key = "brand-kits/{$companyId}/{$brandKitId}/{$assetType}s/{$filename}";
+        $s3Uri = 's3://' . $this->bucket . '/' . $key;
+
+        $cmd = 'aws s3 cp ' . escapeshellarg($localPath) . ' ' . escapeshellarg($s3Uri);
+        $cmd .= ' --region ' . escapeshellarg($this->region);
+
+        if ($contentType) {
+            $cmd .= ' --content-type ' . escapeshellarg($contentType);
+        }
+
+        $cmd .= ' 2>&1';
+
+        exec($cmd, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            throw new Exception("S3 brand kit upload failed: " . implode("\n", $output));
+        }
+
+        return $this->getBrandKitAssetUrl($companyId, $brandKitId, $assetType, $filename);
+    }
+
+    /**
+     * Get the public URL for a brand kit asset
+     *
+     * @param string $companyId Company identifier
+     * @param string $brandKitId Brand kit identifier
+     * @param string $assetType Asset type ('logo', 'font', 'icon')
+     * @param string $filename Filename
+     * @return string Public URL
+     */
+    public function getBrandKitAssetUrl($companyId, $brandKitId, $assetType, $filename) {
+        $key = "brand-kits/{$companyId}/{$brandKitId}/{$assetType}s/{$filename}";
+
+        if (!empty($this->cdnUrl)) {
+            return $this->cdnUrl . '/' . $key;
+        }
+
+        return 'https://' . $this->bucket . '.s3.' . $this->region . '.amazonaws.com/' . $key;
+    }
+
+    /**
+     * Delete all S3 assets for a brand kit
+     *
+     * @param string $companyId Company identifier
+     * @param string $brandKitId Brand kit identifier
+     * @return int Number of deleted objects
+     */
+    public function deleteBrandKitAssets($companyId, $brandKitId) {
+        if (!$this->isEnabled()) {
+            throw new Exception('S3 storage is not enabled');
+        }
+
+        $s3Uri = 's3://' . $this->bucket . '/brand-kits/' . $companyId . '/' . $brandKitId . '/';
+
+        $cmd = 'aws s3 rm ' . escapeshellarg($s3Uri) . ' --recursive';
+        $cmd .= ' --region ' . escapeshellarg($this->region);
+        $cmd .= ' 2>&1';
+
+        exec($cmd, $output, $returnVar);
+
+        if ($returnVar !== 0) {
+            error_log("S3 brand kit delete warning: " . implode("\n", $output));
+        }
+
+        $deletedCount = 0;
+        foreach ($output as $line) {
+            if (strpos($line, 'delete:') === 0) {
+                $deletedCount++;
+            }
+        }
+
+        error_log("S3: Deleted {$deletedCount} brand kit assets from {$s3Uri}");
+        return $deletedCount;
+    }
+
+    /**
      * Fetch content from an S3/CDN URL via server-side HTTP request.
      * Used by launch.php to proxy S3 content through the server
      * so placeholders and tracking can be injected at runtime.

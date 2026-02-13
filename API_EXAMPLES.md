@@ -18,16 +18,23 @@ Some API endpoints require bearer token authentication (configured in `config/co
 BEARER_TOKEN="secure_random_token_here"
 ```
 
-**Protected Endpoints (require bearer token):**
+**Protected Endpoints (require bearer token + VPN):**
 - `/upload.php` - Content uploads
 - `/list-content.php` - Content listing
 - `/launch-link.php` - Tracking link generation
+- `/brand-kits.php` - Brand kit CRUD
+- `/brand-kit-upload.php` - Brand kit asset upload
+- `/customizations.php` - Customization CRUD + preview links
+- `/apply-brand-kit.php` - Brand kit preview transform
+- `/translate-content.php` - AI content translation
+- `/inject-threats.php` - AI threat indicator injection
 
 **Public Endpoints (no authentication):**
 - `/record-score.php` - Score recording (called by end users)
 - `/track-interaction.php` - Interaction tracking (called by end users)
 - `/track-view.php` - View tracking (called by end users)
 - `/sns-messages.php` - SNS webhook receiver
+- `/threat-taxonomy.php` - NIST Phish Scale reference data
 
 For protected endpoints, include the Authorization header:
 
@@ -315,9 +322,307 @@ curl -X POST "${API_BASE}/record-score.php" \
 | `raw_html` | Simple HTML | `html_content` (form field) | Basic HTML pages |
 | `video` | Video file | `file` (MP4/WEBM/OGG) | Training videos |
 
+---
+
+## Brand Kit Management
+
+### Create a Brand Kit
+
+```bash
+curl -X POST "${API_BASE}/brand-kits.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_id": "acme-corp",
+    "name": "Corporate Brand",
+    "primary_color": "#4F46E5",
+    "secondary_color": "#10B981",
+    "accent_color": "#F59E0B",
+    "saved_colors": ["#4F46E5", "#10B981", "#F59E0B"],
+    "primary_font": "Roboto",
+    "is_default": true
+  }'
+```
+
+### List Brand Kits for a Company
+
+```bash
+curl -X GET "${API_BASE}/brand-kits.php?company_id=acme-corp" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### Get Default Brand Kit
+
+```bash
+curl -X GET "${API_BASE}/brand-kits.php?company_id=acme-corp&default=true" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### Get Single Brand Kit (with Assets)
+
+```bash
+curl -X GET "${API_BASE}/brand-kits.php?id=BRAND_KIT_ID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### Update a Brand Kit
+
+```bash
+curl -X PUT "${API_BASE}/brand-kits.php?id=BRAND_KIT_ID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "primary_color": "#7C3AED",
+    "primary_font": "Open Sans"
+  }'
+```
+
+### Delete a Brand Kit
+
+```bash
+curl -X DELETE "${API_BASE}/brand-kits.php?id=BRAND_KIT_ID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+---
+
+## Brand Kit Asset Upload
+
+### Upload a Logo
+
+```bash
+curl -X POST "${API_BASE}/brand-kit-upload.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -F "brand_kit_id=BRAND_KIT_ID" \
+  -F "asset_type=logo" \
+  -F "file=@/path/to/company-logo.png"
+```
+
+### Upload a Custom Font
+
+```bash
+curl -X POST "${API_BASE}/brand-kit-upload.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -F "brand_kit_id=BRAND_KIT_ID" \
+  -F "asset_type=font" \
+  -F "file=@/path/to/custom-font.woff2"
+```
+
+---
+
+## Content Customizations
+
+### Create a Customization (auto-apply brand kit)
+
+```bash
+curl -X POST "${API_BASE}/customizations.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_id": "acme-corp",
+    "base_content_id": "CONTENT_UUID",
+    "brand_kit_id": "BRAND_KIT_UUID",
+    "title": "Acme Custom Email v1",
+    "status": "draft"
+  }'
+```
+
+When `brand_kit_id` is provided but no `customized_html`, the brand kit is automatically applied to the base content.
+
+### Create a Customization (with explicit HTML)
+
+```bash
+curl -X POST "${API_BASE}/customizations.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "company_id": "acme-corp",
+    "base_content_id": "CONTENT_UUID",
+    "customized_html": "<html>...custom content...</html>",
+    "title": "Acme Custom Email v2",
+    "status": "draft",
+    "customization_data": {
+      "brand_kit_applied": false,
+      "element_edits": []
+    }
+  }'
+```
+
+### List Customizations for a Company
+
+```bash
+curl -X GET "${API_BASE}/customizations.php?company_id=acme-corp" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### List Customizations for a Specific Template
+
+```bash
+curl -X GET "${API_BASE}/customizations.php?company_id=acme-corp&base_content_id=CONTENT_UUID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### Get Single Customization
+
+```bash
+curl -X GET "${API_BASE}/customizations.php?id=CUSTOMIZATION_UUID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+### Generate Preview Link
+
+```bash
+curl -X GET "${API_BASE}/customizations.php?id=CUSTOMIZATION_UUID&action=preview" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+Returns a `preview_url` that can be opened in a browser to view the customization. Works for both draft and published customizations.
+
+### Update a Customization
+
+```bash
+curl -X PUT "${API_BASE}/customizations.php?id=CUSTOMIZATION_UUID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "customized_html": "<html>...updated...</html>",
+    "status": "published"
+  }'
+```
+
+Publishing enforces one published customization per (company, base content) pair.
+
+### Delete a Customization
+
+```bash
+curl -X DELETE "${API_BASE}/customizations.php?id=CUSTOMIZATION_UUID" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}"
+```
+
+---
+
+## Apply Brand Kit (Preview)
+
+Preview how a brand kit would transform content (does not persist changes):
+
+```bash
+curl -X POST "${API_BASE}/apply-brand-kit.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content_id": "CONTENT_UUID",
+    "brand_kit_id": "BRAND_KIT_UUID"
+  }'
+```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "html": "<html>...transformed...</html>",
+  "transformations": [
+    {
+      "selector": "img.logo",
+      "property": "src",
+      "old_value": "/images/old-logo.png",
+      "new_value": "https://s3.../logo.png"
+    }
+  ]
+}
+```
+
+---
+
+## Content Translation
+
+### Preview Translation
+
+```bash
+curl -X POST "${API_BASE}/translate-content.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "translate",
+    "content_id": "CONTENT_UUID",
+    "target_language": "es"
+  }'
+```
+
+### Save Translation (Creates New Content Record)
+
+```bash
+curl -X POST "${API_BASE}/translate-content.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "save",
+    "content_id": "CONTENT_UUID",
+    "target_language": "fr",
+    "translated_html": "<html>...translated HTML...</html>"
+  }'
+```
+
+Supported language codes: en, es, fr, de, it, pt, nl, pl, sv, da, no, fi, ja, ko, zh, ar, hi, th, vi, id, ms, tl, tr, ru
+
+---
+
+## Threat Taxonomy (Reference Data)
+
+```bash
+curl -X GET "${API_BASE}/threat-taxonomy.php"
+```
+
+No authentication required. Returns NIST Phish Scale cue categories and difficulty levels.
+
+---
+
+## Inject Threat Indicators
+
+### Inject Using Direct HTML
+
+```bash
+curl -X POST "${API_BASE}/inject-threats.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "html": "<html><body><p>Please click here to verify your account.</p></body></html>",
+    "threat_types": ["urgency-tactic", "suspicious-link"],
+    "intensity": "subtle"
+  }'
+```
+
+### Inject Using Content ID
+
+```bash
+curl -X POST "${API_BASE}/inject-threats.php" \
+  -H "Authorization: Bearer ${BEARER_TOKEN}" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "content_id": "CONTENT_UUID",
+    "threat_types": ["spoofed-email-address", "too-good-to-be-true", "impersonation"],
+    "intensity": "obvious"
+  }'
+```
+
+### Response Format
+
+```json
+{
+  "success": true,
+  "html": "<html>...modified with threat indicators...</html>",
+  "injected_cues": ["urgency-tactic", "suspicious-link"],
+  "difficulty": 3
+}
+```
+
+---
+
 ## Notes
 
 - All uploads automatically generate a preview link (uses recipient_id="preview")
 - Content IDs are automatically generated (32-character hex string)
 - Preview links don't affect tracking statistics
 - Landing pages use the same processing as raw HTML but are designated as 'landing' type for organizational purposes
+- Brand kit operations require the customization tables to be migrated (see `scripts/migrate-add-customization-tables.php`)
+- Customization preview links support both draft and published statuses via the `customization_id` query parameter on launch.php

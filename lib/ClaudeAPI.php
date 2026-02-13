@@ -535,61 +535,9 @@ class ClaudeAPI {
      * Tag phishing email content with NIST Phish Scale cues
      */
     public function tagPhishingEmail($emailHTML, $nistGuideContent = null) {
-        // Structured cue types with specific criteria
-        $cueTypesJson = '{
-  "cueTypes": [
-    {
-      "type": "Error",
-      "cues": [
-        {"name": "spelling-grammar", "criteria": "Does the message contain inaccurate spelling or grammar use, including mismatched plurality?"},
-        {"name": "inconsistency", "criteria": "Are there inconsistencies contained in the email message?"}
-      ]
-    },
-    {
-      "type": "Technical indicator",
-      "cues": [
-        {"name": "attachment-type", "criteria": "Is there a potentially dangerous attachment?"},
-        {"name": "display-name-email-mismatch", "criteria": "Does a display name hide the real sender or reply-to email address?"},
-        {"name": "url-hyperlinking", "criteria": "Is there text that hides the true URL behind the text?"},
-        {"name": "domain-spoofing", "criteria": "Is a domain name used in addresses or links plausibly similar to a legitimate entity\'s domain?"}
-      ]
-    },
-    {
-      "type": "Visual presentation indicator",
-      "cues": [
-        {"name": "no-minimal-branding", "criteria": "Are appropriately branded labeling, symbols, or insignias missing?"},
-        {"name": "logo-imitation-outdated", "criteria": "Do any branding elements appear to be an imitation or out-of-date?"},
-        {"name": "unprofessional-design", "criteria": "Does the design and formatting violate any conventional professional practices? Do the design elements appear to be unprofessionally generated?"},
-        {"name": "security-indicators-icons", "criteria": "Are any markers, images, or logos that imply the security of the email present?"}
-      ]
-    },
-    {
-      "type": "Language and content",
-      "cues": [
-        {"name": "legal-language-disclaimers", "criteria": "Does the message contain any legal-type language such as copyright information, disclaimers, or tax information?"},
-        {"name": "distracting-detail", "criteria": "Does the email contain details that are superfluous or unrelated to the email\'s main premise?"},
-        {"name": "requests-sensitive-info", "criteria": "Does the message contain a request for any sensitive information, including personally identifying information or credentials?"},
-        {"name": "sense-of-urgency", "criteria": "Does the message contain time pressure to get users to quickly comply with the request, including implied pressure?"},
-        {"name": "threatening-language", "criteria": "Does the message contain a threat, including an implied threat, such as legal ramifications for inaction?"},
-        {"name": "generic-greeting", "criteria": "Does the message lack a greeting or lack personalization in the message?"},
-        {"name": "lack-signer-details", "criteria": "Does the message lack detail about the sender, such as contact information?"},
-        {"name": "humanitarian-appeals", "criteria": "Does the message make an appeal to help others in need?"}
-      ]
-    },
-    {
-      "type": "Common tactic",
-      "cues": [
-        {"name": "too-good-to-be-true", "criteria": "Does the message offer anything that is too good to be true, such as winning a contest, lottery, free vacation and so on?"},
-        {"name": "youre-special", "criteria": "Does the email offer anything just for you, such as a valentine e-card from a secret admirer?"},
-        {"name": "limited-time-offer", "criteria": "Does the email offer anything that won\'t last long or for a limited length of time?"},
-        {"name": "mimics-business-process", "criteria": "Does the message appear to be a work or business-related process, such as a new voicemail, package delivery, order confirmation, notice to reset credentials and so on?"},
-        {"name": "poses-as-authority", "criteria": "Does the message appear to be from a friend, colleague, boss or other authority entity?"}
-      ]
-    }
-  ]
-}';
-
-        $cueTypes = json_decode($cueTypesJson, true)['cueTypes'];
+        // Load cue taxonomy from shared source of truth
+        require_once '/var/www/html/lib/ThreatTaxonomy.php';
+        $cueTypes = ThreatTaxonomy::getCueTypesForPrompt();
 
         // Build cue documentation for the prompt
         $cueDocumentation = "";
@@ -1026,5 +974,154 @@ JAVASCRIPT;
 <meta name="ocms-api-base" content="{$apiBase}">
 <script src="{$scriptUrl}"></script>
 JAVASCRIPT;
+    }
+
+    /**
+     * Translate HTML content into a target language while preserving structure
+     *
+     * @param string $htmlContent The HTML content to translate
+     * @param string $targetLang Target language code (ISO 639-1, e.g. 'es', 'fr', 'ar')
+     * @param string $sourceLang Source language code (default: 'en')
+     * @return array ['html' => translated HTML, 'source_language' => string, 'target_language' => string]
+     */
+    public function translateContent($htmlContent, $targetLang, $sourceLang = 'en') {
+        // Content size check
+        $contentSize = strlen($htmlContent);
+        if ($contentSize > $this->maxContentSize) {
+            throw new Exception("Content size ({$contentSize} bytes) exceeds maximum for translation");
+        }
+
+        // Language names for the prompt
+        $languageNames = [
+            'en' => 'English', 'es' => 'Spanish', 'fr' => 'French', 'de' => 'German',
+            'pt' => 'Portuguese', 'pt-br' => 'Portuguese (Brazil)', 'ar' => 'Arabic',
+            'ja' => 'Japanese', 'ko' => 'Korean', 'it' => 'Italian', 'nl' => 'Dutch',
+            'zh' => 'Chinese (Simplified)', 'zh-tw' => 'Chinese (Traditional)',
+            'ru' => 'Russian', 'pl' => 'Polish', 'sv' => 'Swedish', 'da' => 'Danish',
+            'fi' => 'Finnish', 'nb' => 'Norwegian', 'tr' => 'Turkish', 'he' => 'Hebrew',
+            'th' => 'Thai', 'vi' => 'Vietnamese', 'hi' => 'Hindi',
+        ];
+        $targetName = $languageNames[$targetLang] ?? $targetLang;
+        $sourceName = $languageNames[$sourceLang] ?? $sourceLang;
+
+        // Protect sensitive blocks and file references
+        $protected = $this->protectSensitiveBlocks($htmlContent);
+        $tokenized = $this->tokenizeReferences($protected['html']);
+
+        $isRtl = in_array($targetLang, ['ar', 'he']);
+
+        $systemPrompt = "You are an expert translator specializing in web content localization. " .
+            "Translate the following HTML content from {$sourceName} to {$targetName}.\n\n" .
+            "CRITICAL RULES:\n" .
+            "1. Translate ONLY human-readable text content and alt attributes\n" .
+            "2. Preserve ALL HTML tags, attributes, and structure exactly as-is\n" .
+            "3. Preserve ALL placeholder tokens (e.g. __ASSET_REF_XXXX__, __PROTECTED_BLOCK_XXXX__)\n" .
+            "4. Preserve ALL data-cue, data-tag, data-basename, and other data-* attributes unchanged\n" .
+            "5. Preserve ALL inline styles, classes, and IDs unchanged\n" .
+            "6. Preserve ALL placeholder text like RECIPIENT_EMAIL_ADDRESS, CURRENT_YEAR, FROM_EMAIL_ADDRESS, etc.\n" .
+            "7. Maintain the same tone and formality level as the original\n" .
+            "8. Do NOT add explanations, comments, or markdown formatting\n" .
+            "9. Return ONLY the translated HTML\n" .
+            ($isRtl ? "10. Add dir=\"rtl\" to the root <html> or outermost <div> element for right-to-left display\n" : "");
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => "Translate this HTML from {$sourceName} to {$targetName}. Return ONLY the translated HTML:\n\n" . $tokenized['html']
+            ]
+        ];
+
+        $response = $this->sendRequest($messages, $systemPrompt);
+
+        // Clean response
+        $translatedHtml = $this->stripMarkdownCodeBlocks($response);
+        $translatedHtml = $this->extractHTMLOnly($translatedHtml);
+
+        // Restore protected content
+        $translatedHtml = $this->restoreReferences($translatedHtml, $tokenized['referenceMap']);
+        $translatedHtml = $this->restoreProtectedBlocks($translatedHtml, $protected['protectedBlocks']);
+
+        return [
+            'html' => $translatedHtml,
+            'source_language' => $sourceLang,
+            'target_language' => $targetLang,
+        ];
+    }
+
+    /**
+     * Inject threat indicators into email HTML using AI
+     *
+     * @param string $html Email HTML content
+     * @param array $threatTypes Array of cue names to inject (e.g. ['sense-of-urgency', 'domain-spoofing'])
+     * @param string $intensity 'subtle' or 'obvious'
+     * @return array ['html' => modified HTML, 'injected_cues' => array, 'difficulty' => string]
+     */
+    public function injectThreats($html, $threatTypes, $intensity = 'subtle') {
+        $contentSize = strlen($html);
+        if ($contentSize > $this->maxContentSize) {
+            throw new Exception("Content size ({$contentSize} bytes) exceeds maximum for threat injection");
+        }
+
+        require_once '/var/www/html/lib/ThreatTaxonomy.php';
+        $cueTypes = ThreatTaxonomy::getCueTypesForPrompt();
+
+        // Build description of requested threats
+        $requestedCues = [];
+        foreach ($cueTypes as $category) {
+            foreach ($category['cues'] as $cue) {
+                if (in_array($cue['name'], $threatTypes)) {
+                    $requestedCues[] = $cue['name'] . ' (' . $category['type'] . '): ' . $cue['criteria'];
+                }
+            }
+        }
+        $cueList = implode("\n", $requestedCues);
+
+        $intensityGuide = $intensity === 'subtle'
+            ? 'Make the threats well-disguised and realistic. Typos should be minor, urgency should feel professional, domains should be plausible.'
+            : 'Make the threats more apparent and easier to detect. Clear grammatical errors, obvious urgency, clearly fake domains.';
+
+        // Protect sensitive blocks and file references
+        $protected = $this->protectSensitiveBlocks($html);
+        $tokenized = $this->tokenizeReferences($protected['html']);
+
+        $systemPrompt = "You are a phishing simulation expert. Modify the following email HTML to introduce specific threat indicators.\n\n" .
+            "THREAT INDICATORS TO INJECT:\n{$cueList}\n\n" .
+            "INTENSITY: {$intensity}\n{$intensityGuide}\n\n" .
+            "RULES:\n" .
+            "1. Modify text content and attributes to introduce each requested threat indicator\n" .
+            "2. Wrap each introduced threat element with a data-cue attribute: data-cue=\"cue-name\"\n" .
+            "3. Preserve ALL existing HTML structure, data-cue/data-tag attributes, inline styles\n" .
+            "4. Preserve ALL placeholder tokens (__ASSET_REF_XXXX__, __PROTECTED_BLOCK_XXXX__)\n" .
+            "5. Keep changes contextually appropriate for the email's subject matter\n" .
+            "6. Do NOT add explanations or markdown — return ONLY the modified HTML\n" .
+            "7. Every new threat element MUST have a data-cue attribute so it can be identified";
+
+        $messages = [
+            [
+                'role' => 'user',
+                'content' => "Inject these threats into the email HTML: " . implode(', ', $threatTypes) . "\n\nReturn ONLY the modified HTML:\n\n" . $tokenized['html']
+            ]
+        ];
+
+        $response = $this->sendRequest($messages, $systemPrompt);
+
+        $modifiedHtml = $this->stripMarkdownCodeBlocks($response);
+        $modifiedHtml = $this->extractHTMLOnly($modifiedHtml);
+        $modifiedHtml = $this->restoreReferences($modifiedHtml, $tokenized['referenceMap']);
+        $modifiedHtml = $this->restoreProtectedBlocks($modifiedHtml, $protected['protectedBlocks']);
+
+        // Determine difficulty based on total cue count
+        $cueCount = preg_match_all('/data-cue=["\']([^"\']+)["\']/i', $modifiedHtml, $matches);
+        $uniqueCues = array_unique($matches[1] ?? []);
+        $numCues = count($uniqueCues);
+        $difficulty = 'least';
+        if ($numCues >= 6) $difficulty = 'very';
+        elseif ($numCues >= 3) $difficulty = 'moderately';
+
+        return [
+            'html' => $modifiedHtml,
+            'injected_cues' => $threatTypes,
+            'difficulty' => $difficulty,
+        ];
     }
 }
