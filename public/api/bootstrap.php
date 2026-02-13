@@ -331,9 +331,10 @@ function validateVpnAccess() {
         $clientIp = $_SERVER['REMOTE_ADDR'];
     }
 
-    // Allow localhost for development
-    if ($clientIp === '127.0.0.1' || $clientIp === '::1' || $clientIp === 'localhost') {
-        return; // Allow local access
+    // Allow localhost and Docker network IPs for development
+    if ($clientIp === '127.0.0.1' || $clientIp === '::1' || $clientIp === 'localhost'
+        || strpos($clientIp, '172.') === 0 || strpos($clientIp, '192.168.') === 0 || strpos($clientIp, '10.') === 0) {
+        return; // Allow local/Docker access
     }
 
     // Check if client IP is in the allowed list
