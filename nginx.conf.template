@@ -1,0 +1,111 @@
+# Map to dynamically set CORS origin based on request Origin header
+# This allows both the configured UI origin AND 'null' for SCORM content in iframes
+map $http_origin $cors_origin {
+    default "${NGINX_CORS_ORIGIN}";
+    "null"  "null";
+    ""      "${NGINX_CORS_ORIGIN}";
+}
+
+server {
+    listen 8080;
+    server_name localhost;
+
+    # Point root to the public directory
+    root /var/www/html/public;
+    index index.html index.php;
+
+    keepalive_timeout 300s;
+    send_timeout 300s;
+    client_header_timeout 300s;
+    client_body_timeout 300s;
+
+    # Increase upload size for SCORM/Video files
+    client_max_body_size 300M;
+
+    # Handle the content directory (which is a sibling of public, not a child)
+    # CORS headers required for static assets loaded via XHR from the UI platform
+    # Also supports 'null' origin for SCORM content running in sandboxed iframes
+    location /content {
+        alias /var/www/html/content;
+
+        # CORS headers - dynamically set based on request Origin
+        # Allows configured UI origin AND 'null' for SCORM iframe content
+        add_header 'Access-Control-Allow-Origin' '$cors_origin' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+
+        # Permissive CSP for SCORM content which commonly uses inline event handlers
+        # SCORM packages are third-party content that often require unsafe-inline and unsafe-eval
+        add_header 'Content-Security-Policy' "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https:; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; font-src 'self' data: https:;" always;
+
+        # Handle preflight OPTIONS requests
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '$cors_origin' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        try_files $uri $uri/ =404;
+    }
+
+    # Handle the shared images directory (education_templates, shared_landing, etc.)
+    # These are downloaded from login.phishme.com and served locally
+    location /images {
+        alias /var/www/html/images;
+
+        # CORS headers - same as /content, dynamically set based on request Origin
+        add_header 'Access-Control-Allow-Origin' '$cors_origin' always;
+        add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+        add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+        add_header 'Access-Control-Expose-Headers' 'Content-Length,Content-Range' always;
+
+        if ($request_method = 'OPTIONS') {
+            add_header 'Access-Control-Allow-Origin' '$cors_origin' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range' always;
+            add_header 'Access-Control-Max-Age' 1728000;
+            add_header 'Content-Type' 'text/plain; charset=utf-8';
+            add_header 'Content-Length' 0;
+            return 204;
+        }
+
+        try_files $uri $uri/ =404;
+    }
+
+    # Standard routing from SETUP.md
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Handle PHP files with PATH_INFO support
+    # Matches .php at the end OR .php followed by a slash (for PATH_INFO)
+    location ~ \.php(/|$) {
+        # Split the URI into SCRIPT_FILENAME ($fastcgi_script_name) and PATH_INFO ($fastcgi_path_info)
+        fastcgi_split_path_info ^(.+\.php)(/.+)$;
+
+        fastcgi_pass 127.0.0.1:9000;
+        fastcgi_index index.php;
+
+        # Timeout settings for long-running operations (large SCORM uploads)
+        fastcgi_read_timeout 300s;
+        fastcgi_send_timeout 300s;
+        fastcgi_connect_timeout 60s;
+
+        # Standard parameters
+        include fastcgi_params;
+
+        # Pass the separated SCRIPT_FILENAME and the new PATH_INFO variables to PHP-FPM
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param PATH_INFO $fastcgi_path_info;
+    }
+
+    # Deny access to hidden files (like .git or .env)
+    location ~ /\. {
+        deny all;
+    }
+}

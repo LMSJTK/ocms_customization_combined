@@ -1,0 +1,15 @@
+
+stages:
+  - staging-deploy
+cfp-dev-deploy:
+  stage: staging-deploy
+  variables:
+    STAGE: staging-deploy
+    PLATFORM: "cfp-dev"
+    MC_STACK: "service/ecs-ocms-service"
+    MANUAL_MODE: "no"
+  trigger:
+    project: platform/config/cofense-platform
+    branch: main
+    strategy: depend
+
