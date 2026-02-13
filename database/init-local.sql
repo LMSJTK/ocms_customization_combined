@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS global.content
     email_attachment_content bytea,
     thumbnail_filename text,
     thumbnail_content bytea,
-    language text DEFAULT 'en',
+    languages text DEFAULT 'en',
     legacy_id text,
     tags text,
     difficulty text,
