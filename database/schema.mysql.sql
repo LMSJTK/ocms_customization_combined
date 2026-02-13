@@ -1,14 +1,18 @@
 -- Headless PHP Content Platform Database Schema
 -- MySQL Database Schema
 
--- Content table
+-- =========================================================================
+-- Core Tables
+-- =========================================================================
+
+-- Content table - stores all uploaded content (emails, education, landing, SCORM, video)
 CREATE TABLE IF NOT EXISTS content
 (
     id VARCHAR(255) PRIMARY KEY,
     company_id VARCHAR(255),
     title TEXT,
     description TEXT,
-    content_type VARCHAR(50), -- 'scorm', 'html', 'raw_html', 'video', 'email'
+    content_type VARCHAR(50), -- 'scorm', 'html', 'raw_html', 'video', 'email', 'training', 'landing'
     content_preview TEXT,
     content_url TEXT, -- Path where content files are stored
     email_from_address VARCHAR(255),
@@ -19,6 +23,9 @@ CREATE TABLE IF NOT EXISTS content
     email_attachment_content LONGBLOB,
     thumbnail_filename VARCHAR(255),
     thumbnail_content LONGBLOB,
+    languages VARCHAR(50) DEFAULT 'en', -- Language code(s) for this content
+    legacy_id VARCHAR(255), -- ID from legacy pm_* tables (for imported content)
+    domain_id VARCHAR(255), -- FK to domains table (optional, for phishing content)
     tags TEXT, -- Comma-separated list of tags for quick display
     difficulty VARCHAR(10), -- NIST Phish Scales difficulty score (1-5)
     content_domain VARCHAR(255), -- Phishing domain for email content (from pm_phishing_domain)
@@ -30,7 +37,7 @@ CREATE TABLE IF NOT EXISTS content
 -- Content tags table - stores tags identified by Claude API
 CREATE TABLE IF NOT EXISTS content_tags
 (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id VARCHAR(255) PRIMARY KEY, -- Generated as contentId + random hex bytes
     content_id VARCHAR(255) NOT NULL,
     tag_name VARCHAR(255) NOT NULL, -- e.g., 'ransomware', 'phishing', 'social-engineering'
     tag_type VARCHAR(50), -- 'interaction', 'topic', 'phish-cue'
@@ -57,7 +64,96 @@ CREATE TABLE IF NOT EXISTS recipient_tag_scores
 
 CREATE INDEX idx_recipient_tag_scores_recipient_id ON recipient_tag_scores(recipient_id);
 
--- Tracking links table - tracks content launches
+-- =========================================================================
+-- Phishing Domains (referenced by upload.php, suggest-domain.php, bootstrap.php)
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS domains
+(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    domain_url VARCHAR(255) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Legacy phishing domain table (used by bootstrap.php CORS check, suggest-domain.php)
+CREATE TABLE IF NOT EXISTS pm_phishing_domain
+(
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tag VARCHAR(255), -- Domain category tag (e.g., 'banking', 'social')
+    domain VARCHAR(255) NOT NULL, -- Actual domain name
+    is_hidden BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Legacy email template table (used by launch.php for FROM_FRIENDLY_NAME lookup)
+CREATE TABLE IF NOT EXISTS pm_email_template
+(
+    id VARCHAR(255) PRIMARY KEY,
+    from_name VARCHAR(255),
+    from_address VARCHAR(255),
+    subject TEXT,
+    body LONGTEXT,
+    body_type VARCHAR(50),
+    is_active BOOLEAN DEFAULT TRUE,
+    deleted_at TIMESTAMP NULL DEFAULT NULL,
+    urgency VARCHAR(50),
+    language_code VARCHAR(10),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- =========================================================================
+-- Training & Tracking Tables (managed by external system in production)
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS training
+(
+    id VARCHAR(255) PRIMARY KEY,
+    company_id VARCHAR(255),
+    name VARCHAR(255),
+    description TEXT,
+    training_type VARCHAR(50), -- 'preview', 'campaign', etc.
+    landing_content_id VARCHAR(255),
+    training_content_id VARCHAR(255),
+    follow_on_content_id VARCHAR(255),
+    training_email_content_id VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'active',
+    scheduled_at TIMESTAMP NULL DEFAULT NULL,
+    ends_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS training_tracking
+(
+    id VARCHAR(255) PRIMARY KEY,
+    training_id VARCHAR(255) NOT NULL,
+    recipient_id VARCHAR(255),
+    recipient_email_address VARCHAR(255),
+    unique_tracking_id VARCHAR(255) UNIQUE,
+    status VARCHAR(50) DEFAULT 'pending',
+    url_clicked_at TIMESTAMP NULL DEFAULT NULL,
+    training_viewed_at TIMESTAMP NULL DEFAULT NULL,
+    training_completed_at TIMESTAMP NULL DEFAULT NULL,
+    training_score INT,
+    training_reported_at TIMESTAMP NULL DEFAULT NULL,
+    follow_on_viewed_at TIMESTAMP NULL DEFAULT NULL,
+    follow_on_completed_at TIMESTAMP NULL DEFAULT NULL,
+    follow_on_score INT,
+    data_entered_at TIMESTAMP NULL DEFAULT NULL,
+    last_action_at TIMESTAMP NULL DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (training_id) REFERENCES training(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE INDEX idx_training_tracking_training_id ON training_tracking(training_id);
+CREATE INDEX idx_training_tracking_unique_id ON training_tracking(unique_tracking_id);
+
+-- Legacy tracking links table (kept for backwards compatibility)
 CREATE TABLE IF NOT EXISTS oms_tracking_links
 (
     id VARCHAR(255) PRIMARY KEY,
@@ -78,6 +174,8 @@ CREATE INDEX idx_tracking_links_content_id ON oms_tracking_links(content_id);
 CREATE INDEX idx_tracking_links_status ON oms_tracking_links(status);
 
 -- Content interactions table - tracks individual tagged interactions
+-- tracking_link_id references training_tracking.unique_tracking_id (no FK constraint
+-- because training_tracking may be managed externally)
 CREATE TABLE IF NOT EXISTS content_interactions
 (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -87,8 +185,7 @@ CREATE TABLE IF NOT EXISTS content_interactions
     interaction_value TEXT, -- The value if applicable (e.g., input value)
     success BOOLEAN, -- Whether the interaction was correct/successful
     interaction_data JSON, -- Additional metadata about the interaction
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tracking_link_id) REFERENCES oms_tracking_links(id) ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_content_interactions_tracking_link_id ON content_interactions(tracking_link_id);
@@ -100,10 +197,9 @@ CREATE TABLE IF NOT EXISTS sns_message_queue
     id INT AUTO_INCREMENT PRIMARY KEY,
     tracking_link_id VARCHAR(255) NOT NULL,
     message_data JSON NOT NULL,
-    sent BOOLEAN DEFAULT false,
+    sent BOOLEAN DEFAULT FALSE,
     sent_at TIMESTAMP NULL DEFAULT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (tracking_link_id) REFERENCES oms_tracking_links(id) ON DELETE CASCADE
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE INDEX idx_sns_queue_tracking_link_id ON sns_message_queue(tracking_link_id);
@@ -174,3 +270,17 @@ CREATE INDEX idx_content_customizations_company_id ON content_customizations(com
 CREATE INDEX idx_content_customizations_base_content ON content_customizations(base_content_id);
 CREATE INDEX idx_content_customizations_status ON content_customizations(status);
 CREATE INDEX idx_content_customizations_company_content ON content_customizations(company_id, base_content_id);
+
+-- Content translations - links translated content to source content
+CREATE TABLE IF NOT EXISTS content_translations
+(
+    id VARCHAR(255) PRIMARY KEY,
+    source_content_id VARCHAR(255) NOT NULL,
+    translated_content_id VARCHAR(255) NOT NULL,
+    source_language VARCHAR(10) NOT NULL DEFAULT 'en',
+    target_language VARCHAR(10) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY unique_source_lang (source_content_id, target_language),
+    FOREIGN KEY (source_content_id) REFERENCES content(id) ON DELETE CASCADE,
+    FOREIGN KEY (translated_content_id) REFERENCES content(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

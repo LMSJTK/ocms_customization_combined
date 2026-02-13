@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS global.content
     thumbnail_content bytea,
     languages text DEFAULT 'en',
     legacy_id text,
+    domain_id text,
     tags text,
     difficulty text,
     content_domain text,
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS global.content
 
 CREATE TABLE IF NOT EXISTS global.content_tags
 (
-    id SERIAL PRIMARY KEY,
+    id text PRIMARY KEY,
     content_id text NOT NULL REFERENCES global.content(id) ON DELETE CASCADE,
     tag_name text NOT NULL,
     tag_type text,
@@ -84,7 +85,7 @@ CREATE INDEX IF NOT EXISTS idx_tracking_links_status ON global.oms_tracking_link
 CREATE TABLE IF NOT EXISTS global.content_interactions
 (
     id SERIAL PRIMARY KEY,
-    tracking_link_id text NOT NULL REFERENCES global.oms_tracking_links(id) ON DELETE CASCADE,
+    tracking_link_id text NOT NULL,
     tag_name text NOT NULL,
     interaction_type text,
     interaction_value text,
@@ -99,7 +100,7 @@ CREATE INDEX IF NOT EXISTS idx_content_interactions_tag_name ON global.content_i
 CREATE TABLE IF NOT EXISTS global.sns_message_queue
 (
     id SERIAL PRIMARY KEY,
-    tracking_link_id text NOT NULL REFERENCES global.oms_tracking_links(id) ON DELETE CASCADE,
+    tracking_link_id text NOT NULL,
     message_data jsonb NOT NULL,
     sent boolean DEFAULT false,
     sent_at timestamp,
@@ -108,6 +109,45 @@ CREATE TABLE IF NOT EXISTS global.sns_message_queue
 
 CREATE INDEX IF NOT EXISTS idx_sns_queue_tracking_link_id ON global.sns_message_queue(tracking_link_id);
 CREATE INDEX IF NOT EXISTS idx_sns_queue_sent ON global.sns_message_queue(sent);
+
+-- =========================================================================
+-- Phishing Domains
+-- =========================================================================
+
+CREATE TABLE IF NOT EXISTS global.domains
+(
+    id SERIAL PRIMARY KEY,
+    domain_url text NOT NULL,
+    name text NOT NULL,
+    description text,
+    is_active boolean DEFAULT true,
+    created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS global.pm_phishing_domain
+(
+    id SERIAL PRIMARY KEY,
+    tag text,
+    domain text NOT NULL,
+    is_hidden boolean DEFAULT false,
+    created_at timestamp DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS global.pm_email_template
+(
+    id text PRIMARY KEY,
+    from_name text,
+    from_address text,
+    subject text,
+    body text,
+    body_type text,
+    is_active boolean DEFAULT true,
+    deleted_at timestamp,
+    urgency text,
+    language_code text,
+    created_at timestamp DEFAULT now(),
+    updated_at timestamp DEFAULT now()
+);
 
 -- =========================================================================
 -- Training tables (normally managed by external system)
