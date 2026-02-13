@@ -105,7 +105,7 @@ $trainingId = $session['training_id']; // Extracted from training_tracking table
 
 // Fetch the training definition to see which content is landing, training, or follow-on
 $training = $db->fetchOne(
-    'SELECT landing_content_id, training_content_id, follow_on_content_id, training_email_content_id FROM ' .
+    'SELECT landing_content_id, training_content_id, follow_on_content_id, training_email_content_id, company_id FROM ' .
     ($db->getDbType() === 'pgsql' ? 'global.' : '') . 'training WHERE id = :training_id',
     [':training_id' => $trainingId]
 );
@@ -267,6 +267,27 @@ if ($isLandingPage && !empty($training['training_content_id'])) {
             }
 
             // ---------------------------------------------------------
+            // Check for published customization (Story 3.1)
+            // ---------------------------------------------------------
+            $companyId = $training['company_id'] ?? null;
+            if ($companyId) {
+                try {
+                    $customization = $db->fetchOne(
+                        'SELECT id, customized_html FROM content_customizations WHERE base_content_id = :cid AND company_id = :company AND status = :status',
+                        [':cid' => $contentId, ':company' => $companyId, ':status' => 'published']
+                    );
+                    if ($customization && !empty($customization['customized_html'])) {
+                        $htmlContent = $customization['customized_html'];
+                        $servedFromDB = true;
+                        error_log("Using customized content {$customization['id']} for content {$contentId}");
+                    }
+                } catch (Exception $e) {
+                    // content_customizations table may not exist yet — fall through silently
+                    error_log("Customization lookup skipped: " . $e->getMessage());
+                }
+            }
+
+            // ---------------------------------------------------------
             // Inject Content ID meta tag for tracking script
             // ---------------------------------------------------------
             // This allows the tracker to pass content_id to record-score.php
@@ -419,9 +440,23 @@ if ($isLandingPage && !empty($training['training_content_id'])) {
             // ---------------------------------------------------------
             // Logo Placeholder Replacement
             // ---------------------------------------------------------
-            // Replace img tags with class="logo" with the default company logo
-            // Future: Look up company-specific logo from content table's company field
+            // Use brand kit logo if available, otherwise fall back to default
             $defaultLogoUrl = htmlspecialchars($basePath) . '/images/CofenseLogo2026.png';
+            if (!empty($companyId)) {
+                try {
+                    $brandKitLogo = $db->fetchOne(
+                        'SELECT logo_url FROM brand_kits WHERE company_id = :company AND is_default = :is_default AND logo_url IS NOT NULL',
+                        [':company' => $companyId, ':is_default' => ($db->getDbType() === 'pgsql' ? 'true' : 1)]
+                    );
+                    if ($brandKitLogo && !empty($brandKitLogo['logo_url'])) {
+                        $defaultLogoUrl = $brandKitLogo['logo_url'];
+                        error_log("Using brand kit logo for company {$companyId}");
+                    }
+                } catch (Exception $e) {
+                    // brand_kits table may not exist yet — fall through silently
+                    error_log("Brand kit logo lookup skipped: " . $e->getMessage());
+                }
+            }
 
             // Match <img ... class="logo" ... > or <img ... class="...logo..." ... >
             // and replace the src attribute with the default logo
