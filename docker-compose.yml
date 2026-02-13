@@ -1,16 +1,56 @@
 services:
   ocms-service:
-    image: $ARTIFACTORY_REGISTRY/ocms-service:dev
+    image: ocms-service:local
     build:
       context: .
       dockerfile: Dockerfile
     container_name: headless-cms
     ports:
-      - "8080:80"
+      - "8080:8080"
     volumes:
       # Persist uploaded content so it survives container restarts
       - ./content:/var/www/html/content
       # Mount config so you can edit it without rebuilding
+      - ./config:/var/www/html/config
+    environment:
+      # Database (connects to the db service below)
+      aurora_aurora_oneviewservice_host: db
+      aurora_aurora_oneviewservice_port: "5432"
+      aurora_aurora_oneviewservice_db: ocms
+      aurora_aurora_oneviewservice_user: ocms
+      aurora_aurora_oneviewservice_pass: ocms
+      # App URLs (local)
+      MESSAGEHUB_ENDPOINTS_OCMSSERVICE: "http://localhost:8080"
+      MESSAGEHUB_ENDPOINTS_UI_EXTERNAL: "http://localhost:8080"
+      # S3 disabled for local dev (uses local filesystem)
+      S3_CONTENT_ENABLED: "false"
+      S3_CONTENT_BUCKET: ""
+      # AWS (dummy values — SNS calls will fail gracefully)
+      AWS_REGION: "us-east-1"
+      AWS_ACCESS_KEY_ID: "local-dev"
+      AWS_SECRET_ACCESS_KEY: "local-dev"
+      sns_topic_ocmsworker_arn: "arn:aws:sns:us-east-1:000000000000:local-dev"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:16-alpine
+    container_name: ocms-db
+    environment:
+      POSTGRES_DB: ocms
+      POSTGRES_USER: ocms
+      POSTGRES_PASSWORD: ocms
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./database/init-local.sql:/docker-entrypoint-initdb.d/01-init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ocms"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
 volumes:
   db_data:

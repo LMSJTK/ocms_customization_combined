@@ -1,4 +1,4 @@
-FROM dockerhub-remote.packages.cofense-tools.com/php:8.5.0RC5-fpm-alpine3.22
+FROM php:8.4-fpm-alpine3.20
 
 # nginx, supervisor, git, and libraries for php extensions
 RUN apk add --no-cache \

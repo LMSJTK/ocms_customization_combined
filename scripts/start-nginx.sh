@@ -4,7 +4,7 @@
 # then starts nginx
 
 # Set CORS origin from UI external URL, with a sensible default
-export NGINX_CORS_ORIGIN="${MESSAGEHUB_ENDPOINTS_UI_EXTERNAL:-https://platform-dev.cofense-dev.com}"
+export NGINX_CORS_ORIGIN="${MESSAGEHUB_ENDPOINTS_UI_EXTERNAL:-http://localhost:8080}"
 
 echo "[nginx-startup] Setting CORS origin to: $NGINX_CORS_ORIGIN"
 
