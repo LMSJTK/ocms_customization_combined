@@ -5,6 +5,7 @@
  * GET    /api/customizations.php?company_id=X                     — list all customizations for a company
  * GET    /api/customizations.php?company_id=X&base_content_id=Y   — list for a specific template
  * GET    /api/customizations.php?id=X                             — get single customization with full HTML
+ * GET    /api/customizations.php?id=X&action=preview              — generate a preview link for a customization
  * POST   /api/customizations.php                                  — create customization
  * PUT    /api/customizations.php?id=X                             — update customization (partial)
  * DELETE /api/customizations.php?id=X                             — delete customization
@@ -23,6 +24,77 @@ $method = $_SERVER['REQUEST_METHOD'];
 // ── GET ──────────────────────────────────────────────────────────────────
 if ($method === 'GET') {
     try {
+        // ── Preview link generation (Story 2.3) ──
+        // GET ?id=X&action=preview — generate a preview URL for a customization
+        if (!empty($_GET['id']) && !empty($_GET['action']) && $_GET['action'] === 'preview') {
+            $custId = $_GET['id'];
+            $cust = $db->fetchOne(
+                'SELECT * FROM content_customizations WHERE id = :id',
+                [':id' => $custId]
+            );
+            if (!$cust) {
+                sendJSON(['success' => false, 'error' => 'Customization not found'], 404);
+            }
+
+            $baseContentId = $cust['base_content_id'];
+            $companyId = $cust['company_id'];
+
+            // Verify base content exists
+            $content = $db->fetchOne(
+                'SELECT title FROM content WHERE id = :id',
+                [':id' => $baseContentId]
+            );
+            if (!$content) {
+                sendJSON(['success' => false, 'error' => 'Base content not found'], 404);
+            }
+
+            // Generate unique IDs for preview (follows upload.php generatePreviewLink pattern)
+            $trainingId = generateUUID4();
+            $trainingTrackingId = generateUUID4();
+            $uniqueTrackingId = generateUUID4();
+
+            $trainingTable = ($db->getDbType() === 'pgsql' ? 'global.' : '') . 'training';
+            $trackingTable = ($db->getDbType() === 'pgsql' ? 'global.' : '') . 'training_tracking';
+
+            // Create training record with the customization's company_id
+            $db->insert($trainingTable, [
+                'id' => $trainingId,
+                'company_id' => $companyId,
+                'name' => 'Preview: ' . ($content['title'] ?? 'Customization'),
+                'description' => 'Auto-generated preview for customization ' . $custId,
+                'training_type' => 'preview',
+                'training_content_id' => $baseContentId,
+                'status' => 'active',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            // Create training_tracking record
+            $db->insert($trackingTable, [
+                'id' => $trainingTrackingId,
+                'training_id' => $trainingId,
+                'recipient_id' => 'preview',
+                'unique_tracking_id' => $uniqueTrackingId,
+                'status' => 'pending',
+                'created_at' => date('Y-m-d H:i:s'),
+                'updated_at' => date('Y-m-d H:i:s'),
+            ]);
+
+            // Build preview URL: /launch.php/{contentId}/{trackingId}?customization_id=X
+            $contentIdNoDash = str_replace('-', '', $baseContentId);
+            $trackingIdNoDash = str_replace('-', '', $uniqueTrackingId);
+            $previewUrl = rtrim($config['app']['external_url'], '/')
+                . '/launch.php/' . $contentIdNoDash . '/' . $trackingIdNoDash
+                . '?customization_id=' . urlencode($custId);
+
+            sendJSON([
+                'success' => true,
+                'preview_url' => $previewUrl,
+                'customization_id' => $custId,
+                'status' => $cust['status'],
+            ]);
+        }
+
         // Single customization by ID
         if (!empty($_GET['id'])) {
             $cust = $db->fetchOne(

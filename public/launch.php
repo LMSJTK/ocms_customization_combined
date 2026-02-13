@@ -267,10 +267,29 @@ if ($isLandingPage && !empty($training['training_content_id'])) {
             }
 
             // ---------------------------------------------------------
-            // Check for published customization (Story 3.1)
+            // Check for customization (Story 3.1 + Story 2.3 preview)
             // ---------------------------------------------------------
+            // If customization_id is provided (preview mode), load that specific
+            // customization regardless of status. Otherwise, look up the published
+            // customization for the company.
             $companyId = $training['company_id'] ?? null;
-            if ($companyId) {
+            $previewCustomizationId = $_GET['customization_id'] ?? null;
+
+            if ($previewCustomizationId) {
+                try {
+                    $customization = $db->fetchOne(
+                        'SELECT id, customized_html FROM content_customizations WHERE id = :id',
+                        [':id' => $previewCustomizationId]
+                    );
+                    if ($customization && !empty($customization['customized_html'])) {
+                        $htmlContent = $customization['customized_html'];
+                        $servedFromDB = true;
+                        error_log("Using preview customization {$customization['id']} for content {$contentId}");
+                    }
+                } catch (Exception $e) {
+                    error_log("Customization preview lookup skipped: " . $e->getMessage());
+                }
+            } elseif ($companyId) {
                 try {
                     $customization = $db->fetchOne(
                         'SELECT id, customized_html FROM content_customizations WHERE base_content_id = :cid AND company_id = :company AND status = :status',

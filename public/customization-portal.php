@@ -236,6 +236,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                             <div class="w-px h-6 bg-gray-200 mx-1"></div>
                             <button onclick="saveCustomization('draft')" class="px-4 py-1.5 rounded-lg text-sm font-semibold border bg-white hover:bg-gray-50">Save Draft</button>
                             <button onclick="saveCustomization('published')" class="bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-semibold hover:bg-blue-700"><i class="fa-solid fa-rocket mr-1"></i>Publish</button>
+                            <button onclick="generatePreviewLink()" id="preview-link-btn" class="px-3 py-1.5 rounded-lg text-sm font-medium border bg-white hover:bg-gray-50" title="Generate preview link"><i class="fa-solid fa-link mr-1"></i>Preview Link</button>
                         </div>
                     </div>
                 </div>
@@ -1071,6 +1072,31 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             badge.textContent = status === 'published' ? 'Published' : 'Draft';
             badge.className = 'status-badge ml-3 ' + (status === 'published' ? 'status-published' : 'status-draft');
         }
+
+        // ── Story 2.3: Preview Link Generation ─────────────────
+        window.generatePreviewLink = async function() {
+            if (!currentCustomizationId) {
+                // Must save first to get a customization ID
+                toast('Please save as draft first', 'error');
+                return;
+            }
+            const btn = document.getElementById('preview-link-btn');
+            btn.innerHTML = '<span class="spinner"></span>';
+            btn.disabled = true;
+            try {
+                const data = await api('customizations.php?id=' + currentCustomizationId + '&action=preview');
+                if (data.preview_url) {
+                    await navigator.clipboard.writeText(data.preview_url);
+                    toast('Preview link copied to clipboard!');
+                    window.open(data.preview_url, '_blank');
+                }
+            } catch (e) {
+                toast('Failed to generate preview link: ' + e.message, 'error');
+            } finally {
+                btn.innerHTML = '<i class="fa-solid fa-link mr-1"></i>Preview Link';
+                btn.disabled = false;
+            }
+        };
 
         // Auto-save
         function scheduleAutoSave() {
