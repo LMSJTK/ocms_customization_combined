@@ -126,23 +126,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             flex: 1;
             overflow: hidden;
         }
-        .editor-container__sidebar_ckeditor-ai {
-            margin: 0;
-            transition: min-width 0.3s ease;
-            overflow: auto;
-            max-width: calc(var(--ck-sidebar-width) * 2);
-            min-width: calc(var(--ck-sidebar-width) * 2);
-        }
-        .editor-container__sidebar_ckeditor-ai > .ck.ck-tabs.ck-ai-tabs {
-            height: 100%;
-            border-top: 0;
-            border-right: 0;
-            border-bottom: 0;
-        }
-        .editor-container__sidebar_ckeditor-ai:has(.ck-tabs.ck-hidden) {
-            max-width: 0;
-            min-width: 0;
-        }
         .editor-container__editor-wrapper {
             display: flex;
             width: fit-content;
@@ -614,7 +597,6 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                             <div class="editor-container__editor-wrapper">
                                 <div class="editor-container__editor"><div id="editor"></div></div>
                             </div>
-                            <div class="editor-container__sidebar editor-container__sidebar_ckeditor-ai" id="editor-ckeditor-ai"></div>
                         </div>
                     </div>
                 </div>
@@ -1046,9 +1028,8 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
             GeneralHtmlSupport, HtmlEmbed, HtmlComment, FullPage, BalloonToolbar
         } = window.CKEDITOR;
         const {
-            AIChat, AIEditorIntegration, AIQuickActions, AIReviewMode,
-            AITranslate, PasteFromOfficeEnhanced, FormatPainter, LineHeight,
-            SlashCommand, SourceEditingEnhanced, EmailConfigurationHelper
+            AIAssistant, OpenAITextAdapter, PasteFromOfficeEnhanced, FormatPainter,
+            LineHeight, SlashCommand, SourceEditingEnhanced, EmailConfigurationHelper
         } = window.CKEDITOR_PREMIUM_FEATURES;
 
         const CK_LICENSE_KEY = 'eyJhbGciOiJFUzI1NiJ9.eyJleHAiOjE3NzIyMzY3OTksImp0aSI6IjIxZTQ1MmI0LTM0YTQtNGE0OC1hZTlkLWU4MWUwYjc2Mzc4ZSIsInVzYWdlRW5kcG9pbnQiOiJodHRwczovL3Byb3h5LWV2ZW50LmNrZWRpdG9yLmNvbSIsImRpc3RyaWJ1dGlvbkNoYW5uZWwiOlsiY2xvdWQiLCJkcnVwYWwiLCJzaCJdLCJ3aGl0ZUxhYmVsIjp0cnVlLCJsaWNlbnNlVHlwZSI6InRyaWFsIiwiZmVhdHVyZXMiOlsiKiJdLCJ2YyI6IjcyMDRjYmFiIn0.CBOtUlCMTxAYX0D-L452hvTJfdlSflqyINhXRfFDo8JLQFEqsY46_wJJ6RwAcM5WsLVUrZ-OmUexNgry09fvYw';
@@ -1069,7 +1050,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                 toolbar: {
                     items: [
                         'undo', 'redo', '|',
-                        'toggleAi', 'aiQuickActions', '|',
+                        'aiAssistant', '|',
                         'sourceEditingEnhanced', 'showBlocks', 'formatPainter', 'findAndReplace', 'fullscreen', '|',
                         'heading', '|',
                         'fontSize', 'fontFamily', 'fontColor', 'fontBackgroundColor', '|',
@@ -1082,7 +1063,7 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                     shouldNotGroupWhenFull: false
                 },
                 plugins: [
-                    AIChat, AIEditorIntegration, AIQuickActions, AIReviewMode, AITranslate,
+                    AIAssistant, OpenAITextAdapter,
                     Alignment, Autoformat, AutoImage, AutoLink, Autosave, BalloonToolbar,
                     BlockQuote, Bold, Bookmark, CKBox, CKBoxImageEdit, CloudServices,
                     Code, CodeBlock, EmailConfigurationHelper, Emoji, Essentials,
@@ -1102,14 +1083,19 @@ $apiBase = rtrim($config['app']['base_url'], '/') . '/api';
                     TodoList, Underline
                 ],
                 ai: {
-                    container: {
-                        type: 'sidebar',
-                        element: document.querySelector('#editor-ckeditor-ai'),
-                        showResizeButton: false
-                    },
-                    chat: { context: { document: { enabled: true }, urls: { enabled: true }, files: { enabled: true } } }
+                    openAI: {
+                        apiUrl: API + '/ckeditor-ai-adapter.php',
+                        requestHeaders: {
+                            Authorization: 'Bearer ' + TOKEN
+                        },
+                        requestParameters: {
+                            model: 'claude',
+                            max_tokens: 4096,
+                            stream: true
+                        }
+                    }
                 },
-                balloonToolbar: ['aiQuickActions', '|', 'bold', 'italic', '|', 'link', 'insertImage', '|', 'bulletedList', 'numberedList'],
+                balloonToolbar: ['bold', 'italic', '|', 'link', 'insertImage', '|', 'bulletedList', 'numberedList'],
                 cloudServices: { tokenUrl: CK_TOKEN_URL },
                 fontBackgroundColor: { colorPicker: { format: 'hex' }, colors: DEFAULT_HEX_COLORS },
                 fontColor: { colorPicker: { format: 'hex' }, colors: DEFAULT_HEX_COLORS },
